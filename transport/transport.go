@@ -1,13 +1,21 @@
 /*
- * @Author: lizongrong
- * @since: 2019-04-04 17:41:17
- * @lastTime: 2019-04-04 22:53:16
+ * File: transport.go
+ * Project: transport
+ * File Created: Friday, 5th April 2019 12:00:35 am
+ * Author: lizongrong (389006500@qq.com)
+ * -----
+ * Last Modified: Friday, 5th April 2019 4:47:41 pm
+ * Modified By: lizongrong (389006500@qq.com>)
+ * -----
+ * Copyright lizongrong - 2019
  */
 package transport
 
 import (
 	"io"
 	"net"
+
+	"github.com/golang/glog"
 )
 
 type Transport interface {
@@ -23,6 +31,9 @@ type Socket struct {
 
 func (s *Socket) Dial(network, addr string) error {
 	conn, err := net.Dial(network, addr)
+	if err != nil {
+		glog.Error("Dial failed: ", err)
+	}
 	s.conn = conn
 	return err
 }
@@ -36,6 +47,7 @@ func (s *Socket) Write(p []byte) (n int, err error) {
 }
 
 func (s *Socket) Close() error {
+	glog.Info("closed")
 	return s.conn.Close()
 }
 
@@ -50,6 +62,7 @@ func (s Socket) LocalAddr() net.Addr {
 type ServerTransport interface {
 	Listen(network, addr string) error
 	Accept() (Transport, error)
+	io.Closer
 }
 
 type ServerSocket struct {
@@ -58,15 +71,25 @@ type ServerSocket struct {
 
 func (s *ServerSocket) Listen(network, addr string) error {
 	ln, err := net.Listen(network, addr)
+	if err != nil {
+		glog.Error("Listen failed network,addr: ", network, addr, err)
+	}
 	s.ln = ln
 	return err
 }
 
 func (s *ServerSocket) Accept() (Transport, error) {
 	conn, err := s.ln.Accept()
+	if err != nil {
+		glog.Error("Accept failed: ", err)
+	}
 	return &Socket{conn: conn}, err
 }
 
 func (s *ServerSocket) Close() error {
-	return s.ln.Close()
+	err := s.ln.Close()
+	if err != nil {
+		glog.Error("Close failed: ", err)
+	}
+	return err
 }
