@@ -71,6 +71,7 @@ type SimpleClient struct {
 	rwc          io.ReadWriteCloser
 	pendingCalls sync.Map
 	seq          uint64
+	option       Option
 }
 
 func (c *SimpleClient) input(s transport.Transport) {
@@ -84,8 +85,16 @@ func (c *SimpleClient) input(s transport.Transport) {
 		}
 
 		seq := t.Seq
-		TestInterface, _ := c.pendingCalls.Load(seq)
-		call := TestInterface.(*Call)
+		CallInterface, ok := c.pendingCalls.Load(seq)
+		if !ok {
+			glog.Error("sequence number  not found")
+			continue
+		}
+		call, ok := CallInterface.(*Call)
+		if !ok {
+			glog.Error("CallInterface converse failed")
+			continue
+		}
 		c.pendingCalls.Delete(seq)
 
 		switch {
@@ -109,7 +118,7 @@ func NewRPCClient(network string, addr string) (RPCClient, error) {
 		return nil, err
 	}
 	c.rwc = &tr
-
+	c.option = DefaultOption
 	go c.input(&tr)
 	return &c, nil
 }
@@ -125,16 +134,21 @@ func (c *SimpleClient) Close() error {
 
 //Call call是调用rpc的入口，pack打包request，send负责序列化和发送
 //TODO 加入超时限制
+//fixme "RequestSeqKey"变成const
 func (c *SimpleClient) Call(ctx context.Context, a int, b int, reply *int) error {
 	seq := atomic.AddUint64(&c.seq, 1)
 	ctx = context.WithValue(ctx, "RequestSeqKey", seq)
+	canFn := func() {}
+	ctx, canFn = context.WithTimeout(ctx, c.option.RequestTimeout)
 
 	done := make(chan *Call, 1)
 
 	call := c.pack(ctx, done, a, b, reply)
 	select {
 	case <-ctx.Done():
+		canFn()
 		c.pendingCalls.Delete(seq)
+		glog.Errorf("rpc timeout: server: %s", call.ServiceMethod)
 		call.Error = errors.New("client request time out")
 	case <-call.Done:
 	}
