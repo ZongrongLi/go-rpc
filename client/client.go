@@ -35,7 +35,7 @@ type Call struct {
 	ServiceMethod string     // 服务名.方法名
 	Error         error      // 错误信息
 	Done          chan *Call // 在调用结束时激活
-	Payload       *Test
+	Payload       *Test      //TODO 将args和reply分开，可以降低通信流量
 }
 
 func (c *Call) done() {
@@ -60,21 +60,20 @@ func Recv(conn transport.Transport) (error, *Test) {
 	return err, &t
 }
 
-//RPCClient
+//RPCClient  客户端接口
 type RPCClient interface {
 	Call(ctx context.Context, a int, b int, reply *int) error
 	Close() error
 }
 
-//SimpleClient
-type SimpleClient struct {
+type simpleClient struct {
 	rwc          io.ReadWriteCloser
 	pendingCalls sync.Map
 	seq          uint64
 	option       Option
 }
 
-func (c *SimpleClient) input(s transport.Transport) {
+func (c *simpleClient) input(s transport.Transport) {
 	var err error
 	for err == nil {
 		var t *Test
@@ -109,8 +108,9 @@ func (c *SimpleClient) input(s transport.Transport) {
 
 }
 
+//NewRPCClient 工厂函数
 func NewRPCClient(network string, addr string) (RPCClient, error) {
-	c := SimpleClient{}
+	c := simpleClient{}
 	tr := transport.Socket{}
 	err := tr.Dial(network, addr)
 	if err != nil {
@@ -124,7 +124,7 @@ func NewRPCClient(network string, addr string) (RPCClient, error) {
 }
 
 //Close 关闭连接
-func (c *SimpleClient) Close() error {
+func (c *simpleClient) Close() error {
 	err := c.rwc.Close()
 	if err != nil {
 		glog.Info("socket already clsosed")
@@ -135,7 +135,7 @@ func (c *SimpleClient) Close() error {
 //Call call是调用rpc的入口，pack打包request，send负责序列化和发送
 //TODO 加入超时限制
 //fixme "RequestSeqKey"变成const
-func (c *SimpleClient) Call(ctx context.Context, a int, b int, reply *int) error {
+func (c *simpleClient) Call(ctx context.Context, a int, b int, reply *int) error {
 	seq := atomic.AddUint64(&c.seq, 1)
 	ctx = context.WithValue(ctx, "RequestSeqKey", seq)
 	canFn := func() {}
@@ -155,7 +155,7 @@ func (c *SimpleClient) Call(ctx context.Context, a int, b int, reply *int) error
 	return call.Error
 }
 
-func (c *SimpleClient) pack(ctx context.Context, done chan *Call, a, b int, reply *int) *Call {
+func (c *simpleClient) pack(ctx context.Context, done chan *Call, a, b int, reply *int) *Call {
 	call := new(Call)
 	call.ServiceMethod = "test" //服务名加方法名
 
@@ -178,7 +178,7 @@ func (c *SimpleClient) pack(ctx context.Context, done chan *Call, a, b int, repl
 	return call
 }
 
-func (c *SimpleClient) send(ctx context.Context, call *Call) error {
+func (c *simpleClient) send(ctx context.Context, call *Call) error {
 	seq := ctx.Value("RequestSeqKey").(uint64)
 	call.Payload.Seq = seq
 	c.pendingCalls.Store(seq, call)

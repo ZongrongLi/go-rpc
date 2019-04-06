@@ -12,6 +12,6 @@ type Option struct {
 }
 
 var DefaultOption = Option{
-	RequestTimeout: time.Microsecond * 200,
+	RequestTimeout: time.Microsecond * 500,
 	TransportType:  transport.TCPTransport,
 }

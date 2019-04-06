@@ -65,17 +65,17 @@ type RPCServer interface {
 	Close() error
 }
 
-type SimpleServer struct {
+type simpleServer struct {
 	tr transport.ServerTransport
 }
 
 func NewSimpleServer() RPCServer {
-	s := SimpleServer{}
+	s := simpleServer{}
 	return &s
 }
 
 //todo 增加连接池，而不是每一个都单独建立一个连接
-func (s *SimpleServer) connhandle(tr transport.Transport) {
+func (s *simpleServer) connhandle(tr transport.Transport) {
 	for {
 		err, t := Recv(tr)
 		if err == io.EOF {
@@ -94,7 +94,7 @@ func (s *SimpleServer) connhandle(tr transport.Transport) {
 	}
 }
 
-func (s *SimpleServer) Serve(network string, addr string) error {
+func (s *simpleServer) Serve(network string, addr string) error {
 	tr := transport.ServerSocket{}
 
 	defer tr.Close()
@@ -117,6 +117,6 @@ func (s *SimpleServer) Serve(network string, addr string) error {
 	return nil
 }
 
-func (s *SimpleServer) Close() error {
+func (s *simpleServer) Close() error {
 	return s.tr.Close()
 }

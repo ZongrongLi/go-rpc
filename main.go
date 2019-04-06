@@ -22,7 +22,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	s := server.SimpleServer{}
+	s := server.NewSimpleServer()
 	go s.Serve("tcp", ":8888")
 
 	time.Sleep(time.Second * 3)
