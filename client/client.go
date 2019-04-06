@@ -16,16 +16,17 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/golang/glog"
+	"github.com/tiancai110a/go-rpc/protocol"
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
 //用来传递参数的通用结构体
 type Test struct {
-	Seq   uint64
 	A     int //发送的参数
 	B     int
 	Reply *int //返回的参数
@@ -40,24 +41,6 @@ type Call struct {
 
 func (c *Call) done() {
 	c.Done <- c
-}
-
-//Recv 暂时用来处理response的handler
-func Recv(conn transport.Transport) (error, *Test) {
-	data := make([]byte, 10000)
-	n, err := conn.Read(data)
-
-	if err != nil {
-		return err, nil
-	}
-	t := Test{}
-	err = json.Unmarshal(data[:n], &t)
-
-	if err != nil {
-		glog.Error("read failed: ", err)
-		return err, nil
-	}
-	return err, &t
 }
 
 //RPCClient  客户端接口
@@ -75,15 +58,22 @@ type simpleClient struct {
 
 func (c *simpleClient) input(s transport.Transport) {
 	var err error
+	var t Test
 	for err == nil {
-		var t *Test
-		err, t = Recv(s)
-
+		proto := protocol.ProtocolMap[c.option.ProtocolType]
+		responseMsg, err := proto.DecodeMessage(c.rwc)
 		if err != nil {
 			break
 		}
 
-		seq := t.Seq
+		err = json.Unmarshal(responseMsg.Data, &t)
+
+		if err != nil {
+			glog.Error("read failed: ", err)
+			continue
+		}
+
+		seq := responseMsg.Seq
 		CallInterface, ok := c.pendingCalls.Load(seq)
 		if !ok {
 			glog.Error("sequence number  not found")
@@ -134,10 +124,9 @@ func (c *simpleClient) Close() error {
 
 //Call call是调用rpc的入口，pack打包request，send负责序列化和发送
 //TODO 加入超时限制
-//fixme "RequestSeqKey"变成const
 func (c *simpleClient) Call(ctx context.Context, a int, b int, reply *int) error {
 	seq := atomic.AddUint64(&c.seq, 1)
-	ctx = context.WithValue(ctx, "RequestSeqKey", seq)
+	ctx = context.WithValue(ctx, protocol.RequestSeqKey, seq)
 	canFn := func() {}
 	ctx, canFn = context.WithTimeout(ctx, c.option.RequestTimeout)
 
@@ -157,7 +146,7 @@ func (c *simpleClient) Call(ctx context.Context, a int, b int, reply *int) error
 
 func (c *simpleClient) pack(ctx context.Context, done chan *Call, a, b int, reply *int) *Call {
 	call := new(Call)
-	call.ServiceMethod = "test" //服务名加方法名
+	call.ServiceMethod = "test.add"
 
 	t := Test{}
 	t.A = a
@@ -179,11 +168,21 @@ func (c *simpleClient) pack(ctx context.Context, done chan *Call, a, b int, repl
 }
 
 func (c *simpleClient) send(ctx context.Context, call *Call) error {
-	seq := ctx.Value("RequestSeqKey").(uint64)
-	call.Payload.Seq = seq
+	seq := ctx.Value(protocol.RequestSeqKey).(uint64)
 	c.pendingCalls.Store(seq, call)
+	proto := protocol.ProtocolMap[c.option.ProtocolType]
+	requestMsg := proto.NewMessage()
+	requestMsg.Seq = seq
+	requestMsg.MessageType = protocol.MessageTypeRequest
+	serviceMethod := strings.SplitN(call.ServiceMethod, ".", 2)
+	requestMsg.ServiceName = serviceMethod[0]
+	requestMsg.MethodName = serviceMethod[1]
+	requestMsg.SerializeType = c.option.SerializeType
+	requestMsg.CompressType = protocol.CompressTypeNone
 
-	data, err := json.Marshal(call.Payload)
+	requestdata, err := json.Marshal(call.Payload)
+	requestMsg.Data = requestdata
+	data := proto.EncodeMessage(requestMsg)
 
 	if err != nil {
 		glog.Error("Marshal failed", err)

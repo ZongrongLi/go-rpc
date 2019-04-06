@@ -15,20 +15,22 @@ package server
 import (
 	"encoding/json"
 	"io"
+	"log"
 
 	"github.com/golang/glog"
+	"github.com/tiancai110a/go-rpc/protocol"
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
 //用来传递参数的通用结构体
 type Test struct {
-	Seq   uint64
 	A     int //发送的参数
 	B     int
 	Reply *int //返回的参数
 }
 
 func Send(s transport.Transport, t *Test) error {
+
 	data, err := json.Marshal(t)
 	if err != nil {
 		glog.Error("Marshal failed")
@@ -39,45 +41,46 @@ func Send(s transport.Transport, t *Test) error {
 	return err
 }
 
-func Recv(conn transport.Transport) (error, *Test) {
-	data := make([]byte, 10000)
-	n, err := conn.Read(data)
-	if err == io.EOF {
-		return err, nil
-	}
-	if err != nil {
-		glog.Error("read failed", err)
-		return err, nil
-	}
-	t := Test{}
-	err = json.Unmarshal(data[:n], &t)
-
-	if err != nil {
-		glog.Error("read failed", err)
-		return err, nil
-
-	}
-	return err, &t
-}
-
 type RPCServer interface {
 	Serve(network string, addr string) error
 	Close() error
 }
 
 type simpleServer struct {
-	tr transport.ServerTransport
+	tr     transport.ServerTransport
+	option Option
 }
 
 func NewSimpleServer() RPCServer {
 	s := simpleServer{}
+	s.option = DefaultOption
 	return &s
+}
+func (s *simpleServer) writeErrorResponse(responseMsg *protocol.Message, w io.Writer, err string) {
+	proto := protocol.ProtocolMap[s.option.ProtocolType]
+	responseMsg.Error = err
+	log.Println(responseMsg.Error)
+	responseMsg.StatusCode = protocol.StatusError
+	responseMsg.Data = responseMsg.Data[:0]
+	_, _ = w.Write(proto.EncodeMessage(responseMsg))
 }
 
 //todo 增加连接池，而不是每一个都单独建立一个连接
 func (s *simpleServer) connhandle(tr transport.Transport) {
 	for {
-		err, t := Recv(tr)
+		var t Test
+		proto := protocol.ProtocolMap[s.option.ProtocolType]
+		requestMsg, err := proto.DecodeMessage(tr)
+		if err != nil {
+			break
+		}
+
+		err = json.Unmarshal(requestMsg.Data, &t)
+
+		if err != nil {
+			glog.Error("read failed: ", err)
+			continue
+		}
 		if err == io.EOF {
 			break
 		}
@@ -85,11 +88,26 @@ func (s *simpleServer) connhandle(tr transport.Transport) {
 			glog.Error("recv failed ", err)
 			return
 		}
+
+		//执行了一些计算和服务
 		*(t.Reply) = t.A + t.B
 
-		err = Send(tr, t)
+		responseMsg := requestMsg.Clone()
+		responseMsg.MessageType = protocol.MessageTypeResponse
+
+		responseData, err := json.Marshal(t)
 		if err != nil {
-			glog.Error("Send failed")
+			s.writeErrorResponse(responseMsg, tr, err.Error())
+			return
+		}
+
+		responseMsg.StatusCode = protocol.StatusOK
+		responseMsg.Data = responseData
+
+		_, err = tr.Write(proto.EncodeMessage(responseMsg))
+		if err != nil {
+			log.Println(err)
+			return
 		}
 	}
 }
