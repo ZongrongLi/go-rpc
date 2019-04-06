@@ -12,16 +12,34 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"sync"
+	"sync/atomic"
 
 	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
+//用来传递参数的通用结构体
 type Test struct {
-	A int
-	B int
+	Seq   uint64
+	A     int //发送的参数
+	B     int
+	Reply *int //返回的参数
+}
+
+type Call struct {
+	ServiceMethod string     // 服务名.方法名
+	Error         error      // 错误信息
+	Done          chan *Call // 在调用结束时激活
+	Payload       *Test
+}
+
+func (c *Call) done() {
+	c.Done <- c
 }
 
 //Recv 暂时用来处理response的handler
@@ -38,20 +56,21 @@ func Recv(conn transport.Transport) (error, *Test) {
 	if err != nil {
 		glog.Error("read failed: ", err)
 		return err, nil
-
 	}
 	return err, &t
 }
 
 //RPCClient
 type RPCClient interface {
-	Call(a int, b int) error
+	Call(ctx context.Context, a int, b int, reply *int) error
 	Close() error
 }
 
 //SimpleClient
 type SimpleClient struct {
-	rwc io.ReadWriteCloser
+	rwc          io.ReadWriteCloser
+	pendingCalls sync.Map
+	seq          uint64
 }
 
 func (c *SimpleClient) input(s transport.Transport) {
@@ -59,32 +78,40 @@ func (c *SimpleClient) input(s transport.Transport) {
 	for err == nil {
 		var t *Test
 		err, t = Recv(s)
-		if err == io.EOF || err == io.ErrClosedPipe {
-			break
-		}
+
 		if err != nil {
-			glog.Error("read failed")
 			break
 		}
-		glog.Info(t)
+
+		seq := t.Seq
+		TestInterface, _ := c.pendingCalls.Load(seq)
+		call := TestInterface.(*Call)
+		c.pendingCalls.Delete(seq)
+
+		switch {
+		case call == nil:
+			glog.Error("call is canceled before")
+		default:
+			*(call.Payload.Reply) = *(t.Reply)
+			call.done()
+		}
 
 	}
 
 }
 
-//Connect 创建连接
-func (c *SimpleClient) Connect(network string, addr string) error {
-
+func NewRPCClient(network string, addr string) (RPCClient, error) {
+	c := SimpleClient{}
 	tr := transport.Socket{}
 	err := tr.Dial(network, addr)
 	if err != nil {
 		glog.Error("Connect err:", err)
-		return err
+		return nil, err
 	}
 	c.rwc = &tr
 
 	go c.input(&tr)
-	return nil
+	return &c, nil
 }
 
 //Close 关闭连接
@@ -97,25 +124,52 @@ func (c *SimpleClient) Close() error {
 }
 
 //Call call是调用rpc的入口，pack打包request，send负责序列化和发送
-func (c *SimpleClient) Call(a int, b int) error {
-	c.pack(a, b)
-	return nil
-}
+//TODO 加入超时限制
+func (c *SimpleClient) Call(ctx context.Context, a int, b int, reply *int) error {
+	seq := atomic.AddUint64(&c.seq, 1)
+	ctx = context.WithValue(ctx, "RequestSeqKey", seq)
 
-func (c *SimpleClient) pack(a int, b int) error {
-	t := Test{a, b}
-	err := c.send(t)
+	done := make(chan *Call, 1)
 
-	if err != nil {
-		glog.Error("send failed", err)
-		return err
+	call := c.pack(ctx, done, a, b, reply)
+	select {
+	case <-ctx.Done():
+		c.pendingCalls.Delete(seq)
+		call.Error = errors.New("client request time out")
+	case <-call.Done:
 	}
-	return nil
-
+	return call.Error
 }
 
-func (c *SimpleClient) send(t Test) error {
-	data, err := json.Marshal(t)
+func (c *SimpleClient) pack(ctx context.Context, done chan *Call, a, b int, reply *int) *Call {
+	call := new(Call)
+	call.ServiceMethod = "test" //服务名加方法名
+
+	t := Test{}
+	t.A = a
+	t.B = b
+	t.Reply = reply
+	call.Payload = &t
+	if done == nil {
+		done = make(chan *Call, 10) // buffered.
+	} else {
+		if cap(done) == 0 {
+			panic("rpc: done channel is unbuffered")
+		}
+	}
+	call.Done = done
+
+	c.send(ctx, call)
+
+	return call
+}
+
+func (c *SimpleClient) send(ctx context.Context, call *Call) error {
+	seq := ctx.Value("RequestSeqKey").(uint64)
+	call.Payload.Seq = seq
+	c.pendingCalls.Store(seq, call)
+
+	data, err := json.Marshal(call.Payload)
 
 	if err != nil {
 		glog.Error("Marshal failed", err)

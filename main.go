@@ -12,34 +12,36 @@
 package main
 
 import (
+	"context"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/client"
 	"github.com/tiancai110a/go-rpc/server"
-
-	"github.com/golang/glog"
 )
 
 func main() {
-
+	ctx := context.Background()
 	s := server.SimpleServer{}
-	go s.Serve()
+	go s.Serve("tcp", ":8888")
 
 	time.Sleep(time.Second * 3)
 
-	c := client.SimpleClient{}
-	err := c.Connect("tcp", ":8888")
+	c, err := client.NewRPCClient("tcp", ":8888")
 	defer c.Close()
+
 	if err != nil {
-		glog.Error("connect failed,err:", err)
+		glog.Error("NewRPCClient failed,err:", err)
 		return
 	}
 
 	for i := 0; i < 3; i++ {
-		err := c.Call(3, 4)
+		reply := 0
+		err := c.Call(ctx, i, i+1, &reply)
 		if err != nil {
 			glog.Error("Send failed")
 		}
+		glog.Info("+================>", reply)
 		time.Sleep(time.Second * 2)
 	}
 

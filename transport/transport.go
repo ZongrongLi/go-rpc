@@ -18,6 +18,10 @@ import (
 	"github.com/golang/glog"
 )
 
+type TransportType byte
+
+const TCPTransport TransportType = iota
+
 type Transport interface {
 	Dial(network, addr string) error
 	io.ReadWriteCloser

@@ -20,15 +20,16 @@ import (
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
+//用来传递参数的通用结构体
 type Test struct {
-	A int
-	B int
+	Seq   uint64
+	A     int //发送的参数
+	B     int
+	Reply *int //返回的参数
 }
 
-func Send(s transport.Transport, a int, b int) error {
-	t := Test{a, b}
+func Send(s transport.Transport, t *Test) error {
 	data, err := json.Marshal(t)
-
 	if err != nil {
 		glog.Error("Marshal failed")
 		return err
@@ -68,10 +69,15 @@ type SimpleServer struct {
 	tr transport.ServerTransport
 }
 
+func NewSimpleServer() RPCServer {
+	s := SimpleServer{}
+	return &s
+}
+
 //todo 增加连接池，而不是每一个都单独建立一个连接
-func connhandle(s transport.Transport) {
+func (s *SimpleServer) connhandle(tr transport.Transport) {
 	for {
-		err, t := Recv(s)
+		err, t := Recv(tr)
 		if err == io.EOF {
 			break
 		}
@@ -79,38 +85,38 @@ func connhandle(s transport.Transport) {
 			glog.Error("recv failed ", err)
 			return
 		}
-		glog.Info(t)
+		*(t.Reply) = t.A + t.B
 
-		err = Send(s, 1, 2)
+		err = Send(tr, t)
 		if err != nil {
 			glog.Error("Send failed")
 		}
 	}
 }
 
-func (s *SimpleServer) Serve() {
+func (s *SimpleServer) Serve(network string, addr string) error {
 	tr := transport.ServerSocket{}
+
 	defer tr.Close()
-	err := tr.Listen("tcp", ":8888")
+	err := tr.Listen(network, addr)
 	if err != nil {
 		panic(err)
 	}
 
 	for {
-		s, err := tr.Accept()
+		con, err := tr.Accept()
 		if err != nil {
 			glog.Error("accept err:", err)
-			return
+			return err
 		}
 
-		//todo protocol反射 -》 消息分发-》回应
-		//先打印出来
-		go connhandle(s)
+		go s.connhandle(con)
 
 	}
 	glog.Info("server end")
+	return nil
 }
 
-func (s *SimpleServer) Close() {
-	s.tr.Close()
+func (s *SimpleServer) Close() error {
+	return s.tr.Close()
 }
