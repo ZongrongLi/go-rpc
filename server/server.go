@@ -29,18 +29,6 @@ type Test struct {
 	Reply *int //返回的参数
 }
 
-func Send(s transport.Transport, t *Test) error {
-
-	data, err := json.Marshal(t)
-	if err != nil {
-		glog.Error("Marshal failed")
-		return err
-	}
-
-	_, err = s.Write(data)
-	return err
-}
-
 type RPCServer interface {
 	Serve(network string, addr string) error
 	Close() error
