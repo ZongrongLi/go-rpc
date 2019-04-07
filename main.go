@@ -18,11 +18,13 @@ import (
 	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/client"
 	"github.com/tiancai110a/go-rpc/server"
+	"github.com/tiancai110a/go-rpc/service"
 )
 
 func main() {
 	ctx := context.Background()
 	s := server.NewSimpleServer()
+	s.Register(service.TestService{}, service.TestRequest{}, service.TestResponse{})
 	go s.Serve("tcp", ":8888")
 
 	time.Sleep(time.Second * 3)
@@ -37,12 +39,12 @@ func main() {
 
 	for i := 0; i < 3; i++ {
 
-		//TODO rtt 延时太长了为啥
-		request := client.TestRequest{i, i + 1}
-		response := client.TestResponse{}
-		err := c.Call(ctx, &request, &response)
+		//TODO rtt 延时太长了 猜测是json序列化太慢
+		request := service.TestRequest{i, i + 1}
+		response := service.TestResponse{}
+		err := c.Call(ctx, "TestService.Add", &request, &response)
 		if err != nil {
-			glog.Error("Send failed")
+			glog.Error("Send failed", err)
 		}
 		glog.Info("+================>", response)
 		time.Sleep(time.Second * 2)

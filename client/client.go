@@ -26,21 +26,13 @@ import (
 )
 
 //用来传递参数的通用结构体
-type TestRequest struct {
-	A int //发送的参数
-	B int
-}
-
-type TestResponse struct {
-	Reply int //返回的参数
-}
 
 type Call struct {
 	ServiceMethod string     // 服务名.方法名
 	Error         error      // 错误信息
 	Done          chan *Call // 在调用结束时激活
-	Args          *TestRequest
-	Reply         *TestResponse
+	Args          interface{}
+	Reply         interface{}
 }
 
 func (c *Call) done() {
@@ -49,7 +41,8 @@ func (c *Call) done() {
 
 //RPCClient  客户端接口
 type RPCClient interface {
-	Call(ctx context.Context, request *TestRequest, response *TestResponse) error
+	Call(ctx context.Context, serviceMethod string, request interface{}, response interface{}) error
+	pack(ctx context.Context, serviceMethod string, done chan *Call, request interface{}, response interface{}) *Call
 	Close() error
 }
 
@@ -67,13 +60,6 @@ func (c *simpleClient) input(s transport.Transport) {
 		responseMsg, err := proto.DecodeMessage(c.rwc)
 		if err != nil {
 			break
-		}
-		response := TestResponse{}
-		err = json.Unmarshal(responseMsg.Data, &response)
-
-		if err != nil {
-			glog.Error("read failed: ", err)
-			continue
 		}
 
 		seq := responseMsg.Seq
@@ -93,8 +79,12 @@ func (c *simpleClient) input(s transport.Transport) {
 		case call == nil:
 			glog.Error("call is canceled before")
 		default:
+			err = json.Unmarshal(responseMsg.Data, call.Reply)
 
-			*(call.Reply) = response
+			if err != nil {
+				glog.Error("read failed: ", err)
+				continue
+			}
 			//glog.Infof("=====>%p %+v %+v", call.Response, call.Response, response)
 			call.done()
 		}
@@ -119,6 +109,7 @@ func NewRPCClient(network string, addr string) (RPCClient, error) {
 }
 
 //Close 关闭连接
+//TODO 关闭：协程安全清理通信用的那个map
 func (c *simpleClient) Close() error {
 	err := c.rwc.Close()
 	if err != nil {
@@ -128,7 +119,7 @@ func (c *simpleClient) Close() error {
 }
 
 //Call call是调用rpc的入口，pack打包request，send负责序列化和发送
-func (c *simpleClient) Call(ctx context.Context, request *TestRequest, response *TestResponse) error {
+func (c *simpleClient) Call(ctx context.Context, serviceMethod string, request interface{}, response interface{}) error {
 	seq := atomic.AddUint64(&c.seq, 1)
 	ctx = context.WithValue(ctx, protocol.RequestSeqKey, seq)
 	canFn := func() {}
@@ -136,7 +127,7 @@ func (c *simpleClient) Call(ctx context.Context, request *TestRequest, response 
 
 	done := make(chan *Call, 1)
 
-	call := c.pack(ctx, done, request, response)
+	call := c.pack(ctx, serviceMethod, done, request, response)
 	select {
 	case <-ctx.Done():
 		canFn()
@@ -148,9 +139,9 @@ func (c *simpleClient) Call(ctx context.Context, request *TestRequest, response 
 	return call.Error
 }
 
-func (c *simpleClient) pack(ctx context.Context, done chan *Call, request *TestRequest, response *TestResponse) *Call {
+func (c *simpleClient) pack(ctx context.Context, serviceMethod string, done chan *Call, request interface{}, response interface{}) *Call {
 	call := new(Call)
-	call.ServiceMethod = "test.add"
+	call.ServiceMethod = serviceMethod
 
 	call.Reply = response
 	call.Args = request
@@ -176,6 +167,9 @@ func (c *simpleClient) send(ctx context.Context, call *Call) error {
 	requestMsg.Seq = seq
 	requestMsg.MessageType = protocol.MessageTypeRequest
 	serviceMethod := strings.SplitN(call.ServiceMethod, ".", 2)
+	if len(serviceMethod) != 2 {
+		glog.Error("wrong request name")
+	}
 	requestMsg.ServiceName = serviceMethod[0]
 	requestMsg.MethodName = serviceMethod[1]
 	requestMsg.SerializeType = c.option.SerializeType
