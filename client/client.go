@@ -26,17 +26,21 @@ import (
 )
 
 //用来传递参数的通用结构体
-type Test struct {
-	A     int //发送的参数
-	B     int
-	Reply *int //返回的参数
+type TestRequest struct {
+	A int //发送的参数
+	B int
+}
+
+type TestResponse struct {
+	Reply int //返回的参数
 }
 
 type Call struct {
 	ServiceMethod string     // 服务名.方法名
 	Error         error      // 错误信息
 	Done          chan *Call // 在调用结束时激活
-	Payload       *Test      //TODO 将args和reply分开，可以降低通信流量
+	Args          *TestRequest
+	Reply         *TestResponse
 }
 
 func (c *Call) done() {
@@ -45,7 +49,7 @@ func (c *Call) done() {
 
 //RPCClient  客户端接口
 type RPCClient interface {
-	Call(ctx context.Context, a int, b int, reply *int) error
+	Call(ctx context.Context, request *TestRequest, response *TestResponse) error
 	Close() error
 }
 
@@ -58,15 +62,14 @@ type simpleClient struct {
 
 func (c *simpleClient) input(s transport.Transport) {
 	var err error
-	var t Test
 	for err == nil {
 		proto := protocol.ProtocolMap[c.option.ProtocolType]
 		responseMsg, err := proto.DecodeMessage(c.rwc)
 		if err != nil {
 			break
 		}
-
-		err = json.Unmarshal(responseMsg.Data, &t)
+		response := TestResponse{}
+		err = json.Unmarshal(responseMsg.Data, &response)
 
 		if err != nil {
 			glog.Error("read failed: ", err)
@@ -90,7 +93,9 @@ func (c *simpleClient) input(s transport.Transport) {
 		case call == nil:
 			glog.Error("call is canceled before")
 		default:
-			*(call.Payload.Reply) = *(t.Reply)
+
+			*(call.Reply) = response
+			//glog.Infof("=====>%p %+v %+v", call.Response, call.Response, response)
 			call.done()
 		}
 
@@ -123,8 +128,7 @@ func (c *simpleClient) Close() error {
 }
 
 //Call call是调用rpc的入口，pack打包request，send负责序列化和发送
-//TODO 加入超时限制
-func (c *simpleClient) Call(ctx context.Context, a int, b int, reply *int) error {
+func (c *simpleClient) Call(ctx context.Context, request *TestRequest, response *TestResponse) error {
 	seq := atomic.AddUint64(&c.seq, 1)
 	ctx = context.WithValue(ctx, protocol.RequestSeqKey, seq)
 	canFn := func() {}
@@ -132,7 +136,7 @@ func (c *simpleClient) Call(ctx context.Context, a int, b int, reply *int) error
 
 	done := make(chan *Call, 1)
 
-	call := c.pack(ctx, done, a, b, reply)
+	call := c.pack(ctx, done, request, response)
 	select {
 	case <-ctx.Done():
 		canFn()
@@ -144,15 +148,12 @@ func (c *simpleClient) Call(ctx context.Context, a int, b int, reply *int) error
 	return call.Error
 }
 
-func (c *simpleClient) pack(ctx context.Context, done chan *Call, a, b int, reply *int) *Call {
+func (c *simpleClient) pack(ctx context.Context, done chan *Call, request *TestRequest, response *TestResponse) *Call {
 	call := new(Call)
 	call.ServiceMethod = "test.add"
 
-	t := Test{}
-	t.A = a
-	t.B = b
-	t.Reply = reply
-	call.Payload = &t
+	call.Reply = response
+	call.Args = request
 	if done == nil {
 		done = make(chan *Call, 10) // buffered.
 	} else {
@@ -180,7 +181,7 @@ func (c *simpleClient) send(ctx context.Context, call *Call) error {
 	requestMsg.SerializeType = c.option.SerializeType
 	requestMsg.CompressType = protocol.CompressTypeNone
 
-	requestdata, err := json.Marshal(call.Payload)
+	requestdata, err := json.Marshal(call.Args)
 	requestMsg.Data = requestdata
 	data := proto.EncodeMessage(requestMsg)
 

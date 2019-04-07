@@ -36,12 +36,15 @@ func main() {
 	}
 
 	for i := 0; i < 3; i++ {
-		reply := 0
-		err := c.Call(ctx, i, i+1, &reply)
+
+		//TODO rtt 延时太长了为啥
+		request := client.TestRequest{i, i + 1}
+		response := client.TestResponse{}
+		err := c.Call(ctx, &request, &response)
 		if err != nil {
 			glog.Error("Send failed")
 		}
-		glog.Info("+================>", reply)
+		glog.Info("+================>", response)
 		time.Sleep(time.Second * 2)
 	}
 

@@ -23,10 +23,13 @@ import (
 )
 
 //用来传递参数的通用结构体
-type Test struct {
-	A     int //发送的参数
-	B     int
-	Reply *int //返回的参数
+type TestRequest struct {
+	A int //发送的参数
+	B int
+}
+
+type TestResponse struct {
+	Reply int //返回的参数
 }
 
 type RPCServer interface {
@@ -56,14 +59,14 @@ func (s *simpleServer) writeErrorResponse(responseMsg *protocol.Message, w io.Wr
 //todo 增加连接池，而不是每一个都单独建立一个连接
 func (s *simpleServer) connhandle(tr transport.Transport) {
 	for {
-		var t Test
+		var request TestRequest
 		proto := protocol.ProtocolMap[s.option.ProtocolType]
 		requestMsg, err := proto.DecodeMessage(tr)
 		if err != nil {
 			break
 		}
 
-		err = json.Unmarshal(requestMsg.Data, &t)
+		err = json.Unmarshal(requestMsg.Data, &request)
 
 		if err != nil {
 			glog.Error("read failed: ", err)
@@ -77,13 +80,16 @@ func (s *simpleServer) connhandle(tr transport.Transport) {
 			return
 		}
 
+		response := TestResponse{}
+
 		//执行了一些计算和服务
-		*(t.Reply) = t.A + t.B
+		response.Reply = request.A + request.B
+		glog.Infof("%s.%s is called", requestMsg.ServiceName, requestMsg.MethodName)
 
 		responseMsg := requestMsg.Clone()
 		responseMsg.MessageType = protocol.MessageTypeResponse
 
-		responseData, err := json.Marshal(t)
+		responseData, err := json.Marshal(response)
 		if err != nil {
 			s.writeErrorResponse(responseMsg, tr, err.Error())
 			return
