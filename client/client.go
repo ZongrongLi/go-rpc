@@ -111,11 +111,17 @@ func NewRPCClient(network string, addr string) (RPCClient, error) {
 //Close 关闭连接
 //TODO 关闭：协程安全清理通信用的那个map
 func (c *simpleClient) Close() error {
-	err := c.rwc.Close()
-	if err != nil {
-		glog.Info("socket already clsosed")
-	}
-	return err
+	c.pendingCalls.Range(func(key, value interface{}) bool {
+		call, ok := value.(*Call)
+		if ok {
+			call.Error = errors.New("client is shut down")
+			call.done()
+		}
+
+		c.pendingCalls.Delete(key)
+		return true
+	})
+	return nil
 }
 
 //Call call是调用rpc的入口，pack打包request，send负责序列化和发送

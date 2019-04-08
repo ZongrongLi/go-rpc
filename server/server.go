@@ -57,6 +57,7 @@ type simpleServer struct {
 	tr         transport.ServerTransport
 	serviceMap sync.Map
 	option     Option
+	mutex      sync.Mutex
 }
 
 func NewSimpleServer() RPCServer {
@@ -194,5 +195,14 @@ func (s *simpleServer) writeErrorResponse(responseMsg *protocol.Message, w io.Wr
 }
 
 func (s *simpleServer) Close() error {
-	return s.tr.Close()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	err := s.tr.Close()
+
+	s.serviceMap.Range(func(key, value interface{}) bool {
+		s.serviceMap.Delete(key)
+		return true
+	})
+	return err
 }
