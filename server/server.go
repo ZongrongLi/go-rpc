@@ -16,7 +16,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log"
 	"reflect"
 	"sync"
 	"unicode"
@@ -140,20 +139,22 @@ func (s *simpleServer) connhandle(tr transport.Transport) {
 		replyv := newValue(mtype.ReplyType)
 
 		err = json.Unmarshal(requestMsg.Data, &argv)
-
 		if err != nil {
 			glog.Error("read failed: ", err)
 			continue
 		}
 
+		ctx := context.Background()
 		//执行函数
 		var returns []reflect.Value
 		if mtype.ArgType.Kind() != reflect.Ptr {
 			returns = mtype.method.Func.Call([]reflect.Value{srv.rcvr,
+				reflect.ValueOf(ctx),
 				reflect.ValueOf(argv).Elem(),
 				reflect.ValueOf(replyv)})
 		} else {
 			returns = mtype.method.Func.Call([]reflect.Value{srv.rcvr,
+				reflect.ValueOf(ctx),
 				reflect.ValueOf(argv),
 				reflect.ValueOf(replyv)})
 		}
@@ -176,7 +177,7 @@ func (s *simpleServer) connhandle(tr transport.Transport) {
 
 		_, err = tr.Write(proto.EncodeMessage(responseMsg))
 		if err != nil {
-			log.Println(err)
+			glog.Error(err)
 			return
 		}
 	}
@@ -208,7 +209,7 @@ func (s *simpleServer) Serve(network string, addr string) error {
 func (s *simpleServer) writeErrorResponse(responseMsg *protocol.Message, w io.Writer, err string) {
 	proto := protocol.ProtocolMap[s.option.ProtocolType]
 	responseMsg.Error = err
-	log.Println(responseMsg.Error)
+	glog.Error(responseMsg.Error)
 	responseMsg.StatusCode = protocol.StatusError
 	responseMsg.Data = responseMsg.Data[:0]
 	_, _ = w.Write(proto.EncodeMessage(responseMsg))
@@ -261,47 +262,56 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 			continue
 		}
 		// 需要有四个参数: receiver, Context, args, *reply.
-		if mtype.NumIn() != 3 {
+		if mtype.NumIn() != 4 {
 			if reportErr {
-				log.Println("method", mname, "has wrong number of ins:", mtype.NumIn())
+				glog.Error("method", mname, "has wrong number of ins:", mtype.NumIn())
+			}
+			continue
+		}
+
+		// 第一个参数必须是context.Context
+		ctxType := mtype.In(1)
+		if !ctxType.Implements(typeOfContext) {
+			if reportErr {
+				glog.Error("method", mname, " must use context.Context as the first parameter")
 			}
 			continue
 		}
 
 		// 第二个参数是arg
-		argType := mtype.In(1)
+		argType := mtype.In(2)
 		if !isExportedOrBuiltinType(argType) {
 			if reportErr {
-				log.Println(mname, "parameter type not exported:", argType)
+				glog.Error(mname, "parameter type not exported:", argType)
 			}
 			continue
 		}
 		// 第三个参数是返回值，必须是指针类型的
-		replyType := mtype.In(2)
+		replyType := mtype.In(3)
 		if replyType.Kind() != reflect.Ptr {
 			if reportErr {
-				log.Println("method", mname, "reply type not a pointer:", replyType)
+				glog.Error("method", mname, "reply type not a pointer:", replyType)
 			}
 			continue
 		}
 		// 返回值的类型必须是可导出的
 		if !isExportedOrBuiltinType(replyType) {
 			if reportErr {
-				log.Println("method", mname, "reply type not exported:", replyType)
+				glog.Error("method", mname, "reply type not exported:", replyType)
 			}
 			continue
 		}
 		// 必须有一个返回值
 		if mtype.NumOut() != 1 {
 			if reportErr {
-				log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
+				glog.Error("method", mname, "has wrong number of outs:", mtype.NumOut())
 			}
 			continue
 		}
 		// 返回值类型必须是error
 		if returnType := mtype.Out(0); returnType != typeOfError {
 			if reportErr {
-				log.Println("method", mname, "returns", returnType.String(), "not error")
+				glog.Error("method", mname, "returns", returnType.String(), "not error")
 			}
 			continue
 		}

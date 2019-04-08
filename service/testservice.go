@@ -11,6 +11,8 @@
  */
 package service
 
+import "context"
+
 type TestRequest struct {
 	A int //发送的参数
 	B int
@@ -23,7 +25,7 @@ type TestResponse struct {
 type TestService struct {
 }
 
-func (t TestService) Add(req *TestRequest, res *TestResponse) error {
+func (t TestService) Add(ctx context.Context, req *TestRequest, res *TestResponse) error {
 	res.Reply = req.A + req.B
 	return nil
 }

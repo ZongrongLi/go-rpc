@@ -46,7 +46,5 @@ const (
 )
 
 const (
-	RequestSeqKey     = "rpc_request_seq"
-	RequestTimeoutKey = "rpc_request_timeout"
-	MetaDataKey       = "rpc_meta_data"
+	RequestSeqKey = "rpc_request_seq"
 )
