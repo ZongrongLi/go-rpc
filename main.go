@@ -17,13 +17,31 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/client"
+	"github.com/tiancai110a/go-rpc/protocol"
 	"github.com/tiancai110a/go-rpc/server"
 	"github.com/tiancai110a/go-rpc/service"
+	"github.com/tiancai110a/go-rpc/transport"
 )
 
 func main() {
 	ctx := context.Background()
-	s, err := server.NewSimpleServer(nil)
+
+	clientOption := client.Option{
+		RequestTimeout: time.Microsecond * 1000,
+		SerializeType:  protocol.SerializeTypeMsgpack,
+		CompressType:   protocol.CompressTypeNone,
+		TransportType:  transport.TCPTransport,
+		ProtocolType:   protocol.Default,
+	}
+
+	servertOption := server.Option{
+		ProtocolType:  protocol.Default,
+		SerializeType: protocol.SerializeTypeMsgpack,
+		CompressType:  protocol.CompressTypeNone,
+		TransportType: transport.TCPTransport,
+	}
+
+	s, err := server.NewSimpleServer(&servertOption)
 	if err != nil {
 		glog.Error("new serializer failed", err)
 		return
@@ -38,7 +56,7 @@ func main() {
 	go s.Serve("tcp", ":8888")
 	time.Sleep(time.Second * 3)
 
-	c, err := client.NewRPCClient("tcp", ":8888", nil)
+	c, err := client.NewRPCClient("tcp", ":8888", &clientOption)
 	defer c.Close()
 
 	if err != nil {

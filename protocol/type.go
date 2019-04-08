@@ -15,6 +15,7 @@ type SerializeType byte
 
 const (
 	SerializeTypeJson SerializeType = iota
+	SerializeTypeMsgpack
 	SerializeTypeOther
 )
 

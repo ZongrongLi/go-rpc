@@ -7,6 +7,22 @@
 			"path": "github.com/golang/glog",
 			"revision": "23def4e6c14b4da8ac2ed8007337bc5eb5007998",
 			"revisionTime": "2016-01-25T20:49:56Z"
+		},
+		{
+			"checksumSHA1": "F0xoSwu6bNb9uX0OUOL/sSkm//8=",
+			"path": "github.com/tiancai110a/msgpack",
+			"revision": "c2fc210f30a2aca9db880cc017a92c169c999253",
+			"revisionTime": "2019-03-27T14:08:13Z"
+		},
+		{
+			"checksumSHA1": "MVWKvLSnWudQLxdP/bPhgjRL2yE=",
+			"path": "github.com/vmihailenco/msgpack/codes",
+			"revision": "c2fc210f30a2aca9db880cc017a92c169c999253",
+			"revisionTime": "2019-03-27T14:08:13Z"
+		},
+		{
+			"path": "google.golang.org/appengine/datastore",
+			"revision": ""
 		}
 	],
 	"rootPath": "github.com/tiancai110a/go-rpc"

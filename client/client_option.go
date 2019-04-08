@@ -14,8 +14,8 @@ package client
 import (
 	"time"
 
-	"github.com/megaredfan/rpc-demo/transport"
 	"github.com/tiancai110a/go-rpc/protocol"
+	"github.com/tiancai110a/go-rpc/transport"
 )
 
 type Option struct {
