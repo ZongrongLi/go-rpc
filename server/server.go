@@ -13,11 +13,14 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
 	"reflect"
 	"sync"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/protocol"
@@ -26,7 +29,7 @@ import (
 
 type RPCServer interface {
 	Serve(network string, addr string) error
-	Register(rcvr interface{}, arg interface{}, reply interface{})
+	Register(rcvr interface{})
 	Close() error
 }
 
@@ -37,10 +40,10 @@ type methodType struct {
 }
 
 type service struct {
-	name      string
-	typ       reflect.Type
-	rcvr      reflect.Value
-	methodADD *methodType //先实现固定的方法名
+	name    string
+	typ     reflect.Type
+	rcvr    reflect.Value
+	methods map[string]*methodType
 }
 
 //用来传递参数的通用结构体
@@ -66,7 +69,7 @@ func NewSimpleServer() RPCServer {
 	return &s
 }
 
-func (s *simpleServer) Register(rcvr interface{}, arg interface{}, reply interface{}) {
+func (s *simpleServer) Register(rcvr interface{}) {
 
 	typ := reflect.TypeOf(rcvr)
 	name := typ.Name()
@@ -75,9 +78,9 @@ func (s *simpleServer) Register(rcvr interface{}, arg interface{}, reply interfa
 	srv.rcvr = reflect.ValueOf(rcvr)
 	srv.typ = typ
 
-	srv.methodADD = new(methodType)
-	srv.methodADD.ArgType = reflect.TypeOf(arg)
-	srv.methodADD.ReplyType = reflect.TypeOf(reply)
+	//TODO 找不到的时候要控制一下
+	methods := suitableMethods(typ, true)
+	srv.methods = methods
 
 	glog.Info("service name", srv.name)
 	if _, duplicate := s.serviceMap.LoadOrStore(name, srv); duplicate {
@@ -128,7 +131,14 @@ func (s *simpleServer) connhandle(tr transport.Transport) {
 
 		}
 
-		argv := newValue(srv.methodADD.ArgType)
+		mtype, ok := srv.methods[mname]
+		if !ok {
+			s.writeErrorResponse(responseMsg, tr, "can not find method")
+			return
+		}
+		argv := newValue(mtype.ArgType)
+		replyv := newValue(mtype.ReplyType)
+
 		err = json.Unmarshal(requestMsg.Data, &argv)
 
 		if err != nil {
@@ -137,11 +147,21 @@ func (s *simpleServer) connhandle(tr transport.Transport) {
 		}
 
 		//执行函数
-		tmps := newValue(srv.typ)
-		replyv := newValue(srv.methodADD.ReplyType)
-		_ = reflect.ValueOf(tmps).Method(0).Call([]reflect.Value{
-			reflect.ValueOf(argv),
-			reflect.ValueOf(replyv)})
+		var returns []reflect.Value
+		if mtype.ArgType.Kind() != reflect.Ptr {
+			returns = mtype.method.Func.Call([]reflect.Value{srv.rcvr,
+				reflect.ValueOf(argv).Elem(),
+				reflect.ValueOf(replyv)})
+		} else {
+			returns = mtype.method.Func.Call([]reflect.Value{srv.rcvr,
+				reflect.ValueOf(argv),
+				reflect.ValueOf(replyv)})
+		}
+		if len(returns) > 0 && returns[0].Interface() != nil {
+			err = returns[0].Interface().(error)
+			s.writeErrorResponse(responseMsg, tr, err.Error())
+			return
+		}
 
 		glog.Infof("%s.%s is called", sname, mname)
 
@@ -205,4 +225,87 @@ func (s *simpleServer) Close() error {
 		return true
 	})
 	return err
+}
+
+// Is this type exported or a builtin?
+func isExportedOrBuiltinType(t reflect.Type) bool {
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	// PkgPath will be non-empty even for an exported type,
+	// so we need to check the type name as well.
+	return isExported(t.Name()) || t.PkgPath() == ""
+}
+
+// Is this an exported - upper case - name?
+func isExported(name string) bool {
+	rune, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(rune)
+}
+
+// Precompute the reflect type for error. Can't use error directly
+// because Typeof takes an empty interface value. This is annoying.
+var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
+var typeOfContext = reflect.TypeOf((*context.Context)(nil)).Elem()
+
+//过滤符合规则的方法，从net.rpc包抄的
+func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
+	methods := make(map[string]*methodType)
+	for m := 0; m < typ.NumMethod(); m++ {
+		method := typ.Method(m)
+		mtype := method.Type
+		mname := method.Name
+
+		// 方法必须是可导出的
+		if method.PkgPath != "" {
+			continue
+		}
+		// 需要有四个参数: receiver, Context, args, *reply.
+		if mtype.NumIn() != 3 {
+			if reportErr {
+				log.Println("method", mname, "has wrong number of ins:", mtype.NumIn())
+			}
+			continue
+		}
+
+		// 第二个参数是arg
+		argType := mtype.In(1)
+		if !isExportedOrBuiltinType(argType) {
+			if reportErr {
+				log.Println(mname, "parameter type not exported:", argType)
+			}
+			continue
+		}
+		// 第三个参数是返回值，必须是指针类型的
+		replyType := mtype.In(2)
+		if replyType.Kind() != reflect.Ptr {
+			if reportErr {
+				log.Println("method", mname, "reply type not a pointer:", replyType)
+			}
+			continue
+		}
+		// 返回值的类型必须是可导出的
+		if !isExportedOrBuiltinType(replyType) {
+			if reportErr {
+				log.Println("method", mname, "reply type not exported:", replyType)
+			}
+			continue
+		}
+		// 必须有一个返回值
+		if mtype.NumOut() != 1 {
+			if reportErr {
+				log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
+			}
+			continue
+		}
+		// 返回值类型必须是error
+		if returnType := mtype.Out(0); returnType != typeOfError {
+			if reportErr {
+				log.Println("method", mname, "returns", returnType.String(), "not error")
+			}
+			continue
+		}
+		methods[mname] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
+	}
+	return methods
 }

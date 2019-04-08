@@ -23,6 +23,7 @@ type TestResponse struct {
 type TestService struct {
 }
 
-func (t TestService) Add(req *TestRequest, res *TestResponse) {
+func (t TestService) Add(req *TestRequest, res *TestResponse) error {
 	res.Reply = req.A + req.B
+	return nil
 }

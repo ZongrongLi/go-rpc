@@ -24,9 +24,10 @@ import (
 func main() {
 	ctx := context.Background()
 	s := server.NewSimpleServer()
-	s.Register(service.TestService{}, service.TestRequest{}, service.TestResponse{})
-	go s.Serve("tcp", ":8888")
+	//	s.Register(service.TestService{})
+	s.Register(service.ArithService{})
 
+	go s.Serve("tcp", ":8888")
 	time.Sleep(time.Second * 3)
 
 	c, err := client.NewRPCClient("tcp", ":8888")
@@ -40,13 +41,41 @@ func main() {
 	for i := 0; i < 3; i++ {
 
 		//TODO rtt 延时太长了 猜测是json序列化太慢
-		request := service.TestRequest{i, i + 1}
-		response := service.TestResponse{}
-		err := c.Call(ctx, "TestService.Add", &request, &response)
+		// testrequest := service.TestRequest{i, i + 1}
+		// testresponse := service.TestResponse{}
+		// err := c.Call(ctx, "TestService.Add", &testrequest, &testresponse)
+		// if err != nil {
+		// 	glog.Error("Send failed", err)
+		// }
+		// glog.Info("TestService.Add ================>", testresponse)
+
+		glog.Infof("args A: %d, args B:%d", i, i+1)
+		arithrequest := service.ArithRequest{i, i + 1}
+		arithresponse := service.ArithResponse{}
+		err = c.Call(ctx, "ArithService.Add", &arithrequest, &arithresponse)
 		if err != nil {
-			glog.Error("Send failed", err)
+			glog.Error("Send failed ", err)
 		}
-		glog.Info("+================>", response)
+		glog.Info("TestService.Add ================>", arithresponse)
+
+		err = c.Call(ctx, "ArithService.Minus", &arithrequest, &arithresponse)
+		if err != nil {
+			glog.Error("Send failed ", err)
+		}
+		glog.Info("TestService.Minus ================>", arithresponse)
+
+		err = c.Call(ctx, "ArithService.Mul", &arithrequest, &arithresponse)
+		if err != nil {
+			glog.Error("Send failed ", err)
+		}
+		glog.Info("TestService.Mul ================>", arithresponse)
+
+		err = c.Call(ctx, "ArithService.Divide", &arithrequest, &arithresponse)
+		if err != nil {
+			glog.Error("Send failed ", err)
+		}
+		glog.Info("TestService.Divide ================>", arithresponse)
+
 		time.Sleep(time.Second * 2)
 	}
 
