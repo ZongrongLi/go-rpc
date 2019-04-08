@@ -15,6 +15,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"reflect"
 	"sync"
@@ -28,7 +29,7 @@ import (
 
 type RPCServer interface {
 	Serve(network string, addr string) error
-	Register(rcvr interface{})
+	Register(rcvr interface{}) error
 	Close() error
 }
 
@@ -68,7 +69,7 @@ func NewSimpleServer() RPCServer {
 	return &s
 }
 
-func (s *simpleServer) Register(rcvr interface{}) {
+func (s *simpleServer) Register(rcvr interface{}) error {
 
 	typ := reflect.TypeOf(rcvr)
 	name := typ.Name()
@@ -79,13 +80,28 @@ func (s *simpleServer) Register(rcvr interface{}) {
 
 	//TODO 找不到的时候要控制一下
 	methods := suitableMethods(typ, true)
+	if len(methods) == 0 {
+		var errorStr string
+
+		// 如果对应的类型没有任何符合规则的方法，扫描对应的指针类型
+		// 也是从net.rpc包里抄来的
+		method := suitableMethods(reflect.PtrTo(srv.typ), false)
+		if len(method) != 0 {
+			errorStr = "rpcx.Register: type " + name + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
+		} else {
+			errorStr = "rpcx.Register: type " + name + " has no exported methods of suitable type"
+		}
+		glog.Info(errorStr)
+		return errors.New(errorStr)
+	}
+
 	srv.methods = methods
 
 	glog.Info("service name", srv.name)
 	if _, duplicate := s.serviceMap.LoadOrStore(name, srv); duplicate {
-		return
+		return nil
 	}
-	return
+	return nil
 }
 func newValue(t reflect.Type) interface{} {
 	if t.Kind() == reflect.Ptr {

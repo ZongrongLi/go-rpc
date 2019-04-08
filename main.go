@@ -25,7 +25,11 @@ func main() {
 	ctx := context.Background()
 	s := server.NewSimpleServer()
 	//	s.Register(service.TestService{})
-	s.Register(service.ArithService{})
+	err := s.Register(service.ArithService{})
+	if err != nil {
+		glog.Error("Register failed,err:", err)
+
+	}
 
 	go s.Serve("tcp", ":8888")
 	time.Sleep(time.Second * 3)
