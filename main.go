@@ -23,9 +23,13 @@ import (
 
 func main() {
 	ctx := context.Background()
-	s := server.NewSimpleServer()
+	s, err := server.NewSimpleServer(nil)
+	if err != nil {
+		glog.Error("new serializer failed", err)
+		return
+	}
 	//	s.Register(service.TestService{})
-	err := s.Register(service.ArithService{})
+	err = s.Register(service.ArithService{})
 	if err != nil {
 		glog.Error("Register failed,err:", err)
 
@@ -34,7 +38,7 @@ func main() {
 	go s.Serve("tcp", ":8888")
 	time.Sleep(time.Second * 3)
 
-	c, err := client.NewRPCClient("tcp", ":8888")
+	c, err := client.NewRPCClient("tcp", ":8888", nil)
 	defer c.Close()
 
 	if err != nil {

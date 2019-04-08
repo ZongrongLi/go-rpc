@@ -14,7 +14,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"reflect"
@@ -60,13 +59,25 @@ type simpleServer struct {
 	tr         transport.ServerTransport
 	serviceMap sync.Map
 	option     Option
+	serializer protocol.Serializer
 	mutex      sync.Mutex
 }
 
-func NewSimpleServer() RPCServer {
+func NewSimpleServer(op *Option) (RPCServer, error) {
 	s := simpleServer{}
-	s.option = DefaultOption
-	return &s
+
+	if op == nil {
+		s.option = DefaultOption
+	} else {
+		s.option = *op
+	}
+	var err error
+	s.serializer, err = protocol.NewSerializer(s.option.SerializeType)
+	if err != nil {
+		//glog.Error("new serializer failed", err)
+		return nil, err
+	}
+	return &s, nil
 }
 
 func (s *simpleServer) Register(rcvr interface{}) error {
@@ -115,7 +126,7 @@ func newValue(t reflect.Type) interface{} {
 func (s *simpleServer) connhandle(tr transport.Transport) {
 	for {
 		proto := protocol.ProtocolMap[s.option.ProtocolType]
-		requestMsg, err := proto.DecodeMessage(tr)
+		requestMsg, err := proto.DecodeMessage(tr, s.serializer)
 		if err != nil {
 			break
 		}
@@ -154,7 +165,7 @@ func (s *simpleServer) connhandle(tr transport.Transport) {
 		argv := newValue(mtype.ArgType)
 		replyv := newValue(mtype.ReplyType)
 
-		err = json.Unmarshal(requestMsg.Data, &argv)
+		err = s.serializer.Unmarshal(requestMsg.Data, &argv)
 		if err != nil {
 			glog.Error("read failed: ", err)
 			continue
@@ -182,7 +193,7 @@ func (s *simpleServer) connhandle(tr transport.Transport) {
 
 		glog.Infof("%s.%s is called", sname, mname)
 
-		responseData, err := json.Marshal(replyv)
+		responseData, err := s.serializer.Marshal(replyv)
 		if err != nil {
 			s.writeErrorResponse(responseMsg, tr, err.Error())
 			return
@@ -191,7 +202,7 @@ func (s *simpleServer) connhandle(tr transport.Transport) {
 		responseMsg.StatusCode = protocol.StatusOK
 		responseMsg.Data = responseData
 
-		_, err = tr.Write(proto.EncodeMessage(responseMsg))
+		_, err = tr.Write(proto.EncodeMessage(responseMsg, s.serializer))
 		if err != nil {
 			glog.Error(err)
 			return
@@ -228,7 +239,7 @@ func (s *simpleServer) writeErrorResponse(responseMsg *protocol.Message, w io.Wr
 	glog.Error(responseMsg.Error)
 	responseMsg.StatusCode = protocol.StatusError
 	responseMsg.Data = responseMsg.Data[:0]
-	_, _ = w.Write(proto.EncodeMessage(responseMsg))
+	_, _ = w.Write(proto.EncodeMessage(responseMsg, s.serializer))
 }
 
 func (s *simpleServer) Close() error {

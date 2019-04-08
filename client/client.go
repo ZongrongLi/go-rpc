@@ -13,7 +13,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"strings"
@@ -49,15 +48,16 @@ type RPCClient interface {
 type simpleClient struct {
 	rwc          io.ReadWriteCloser
 	pendingCalls sync.Map
+	serializer   protocol.Serializer
 	seq          uint64
 	option       Option
 }
 
-func (c *simpleClient) input(s transport.Transport) {
+func (c *simpleClient) input() {
 	var err error
 	for err == nil {
 		proto := protocol.ProtocolMap[c.option.ProtocolType]
-		responseMsg, err := proto.DecodeMessage(c.rwc)
+		responseMsg, err := proto.DecodeMessage(c.rwc, c.serializer)
 		if err != nil {
 			break
 		}
@@ -79,7 +79,7 @@ func (c *simpleClient) input(s transport.Transport) {
 		case call == nil:
 			glog.Error("call is canceled before")
 		default:
-			err = json.Unmarshal(responseMsg.Data, call.Reply)
+			err = c.serializer.Unmarshal(responseMsg.Data, call.Reply)
 
 			if err != nil {
 				glog.Error("read failed: ", err)
@@ -94,7 +94,7 @@ func (c *simpleClient) input(s transport.Transport) {
 }
 
 //NewRPCClient 工厂函数
-func NewRPCClient(network string, addr string) (RPCClient, error) {
+func NewRPCClient(network string, addr string, op *Option) (RPCClient, error) {
 	c := simpleClient{}
 	tr := transport.Socket{}
 	err := tr.Dial(network, addr)
@@ -103,8 +103,19 @@ func NewRPCClient(network string, addr string) (RPCClient, error) {
 		return nil, err
 	}
 	c.rwc = &tr
-	c.option = DefaultOption
-	go c.input(&tr)
+	if op == nil {
+		c.option = DefaultOption
+	} else {
+		c.option = *op
+	}
+
+	c.serializer, err = protocol.NewSerializer(c.option.SerializeType)
+	if err != nil {
+		//glog.Error("new serializer failed", err)
+		return nil, err
+	}
+
+	go c.input()
 	return &c, nil
 }
 
@@ -181,9 +192,9 @@ func (c *simpleClient) send(ctx context.Context, call *Call) error {
 	requestMsg.SerializeType = c.option.SerializeType
 	requestMsg.CompressType = protocol.CompressTypeNone
 
-	requestdata, err := json.Marshal(call.Args)
+	requestdata, err := c.serializer.Marshal(call.Args)
 	requestMsg.Data = requestdata
-	data := proto.EncodeMessage(requestMsg)
+	data := proto.EncodeMessage(requestMsg, c.serializer)
 
 	if err != nil {
 		glog.Error("Marshal failed", err)

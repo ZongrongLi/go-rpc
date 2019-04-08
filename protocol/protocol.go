@@ -20,7 +20,6 @@ package protocol
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"io"
 )
@@ -52,8 +51,8 @@ func (m Message) Clone() *Message {
 
 type Protocol interface {
 	NewMessage() *Message
-	DecodeMessage(r io.Reader) (*Message, error)
-	EncodeMessage(message *Message) []byte
+	DecodeMessage(r io.Reader, s Serializer) (*Message, error)
+	EncodeMessage(message *Message, s Serializer) []byte
 }
 
 var ProtocolMap = map[ProtocolType]Protocol{
@@ -68,7 +67,7 @@ func (RPCProtocol) NewMessage() *Message {
 }
 
 //DecodeMessage 从socket中读取数据并且包装成message
-func (RPCProtocol) DecodeMessage(r io.Reader) (*Message, error) {
+func (RPCProtocol) DecodeMessage(r io.Reader, s Serializer) (*Message, error) {
 	first3bytes := make([]byte, 3)
 	_, err := io.ReadFull(r, first3bytes)
 	if err != nil {
@@ -96,7 +95,7 @@ func (RPCProtocol) DecodeMessage(r io.Reader) (*Message, error) {
 	headerBytes := data[4 : headerLen+4]
 
 	header := &Header{}
-	err = json.Unmarshal(headerBytes, header)
+	err = s.Unmarshal(headerBytes, header)
 	if err != nil {
 		return nil, err
 	}
@@ -107,9 +106,9 @@ func (RPCProtocol) DecodeMessage(r io.Reader) (*Message, error) {
 }
 
 //EncodeMessage
-func (RPCProtocol) EncodeMessage(msg *Message) []byte {
+func (RPCProtocol) EncodeMessage(msg *Message, s Serializer) []byte {
 	first3bytes := []byte{0xab, 0xba, 0x00}
-	headerBytes, _ := json.Marshal(msg.Header)
+	headerBytes, _ := s.Marshal(msg.Header)
 
 	totalLen := 4 + len(headerBytes) + len(msg.Data)
 	totalLenBytes := make([]byte, 4)
