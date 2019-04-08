@@ -27,7 +27,7 @@ type Option struct {
 }
 
 var DefaultOption = Option{
-	RequestTimeout: time.Microsecond * 1000,
+	RequestTimeout: time.Millisecond * 100,
 	SerializeType:  protocol.SerializeTypeJson,
 	CompressType:   protocol.CompressTypeNone,
 	TransportType:  transport.TCPTransport,

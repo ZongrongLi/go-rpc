@@ -27,7 +27,7 @@ func main() {
 	ctx := context.Background()
 
 	clientOption := client.Option{
-		RequestTimeout: time.Microsecond * 1000,
+		RequestTimeout: time.Millisecond * 100,
 		SerializeType:  protocol.SerializeTypeMsgpack,
 		CompressType:   protocol.CompressTypeNone,
 		TransportType:  transport.TCPTransport,
@@ -64,7 +64,7 @@ func main() {
 		return
 	}
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 1; i++ {
 
 		//TODO rtt 延时太长了 猜测是json序列化太慢
 		// testrequest := service.TestRequest{i, i + 1}
@@ -102,7 +102,7 @@ func main() {
 		}
 		glog.Info("TestService.Divide ================>", arithresponse)
 
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second)
 	}
 
 }

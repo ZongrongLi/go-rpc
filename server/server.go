@@ -89,7 +89,6 @@ func (s *simpleServer) Register(rcvr interface{}) error {
 	srv.rcvr = reflect.ValueOf(rcvr)
 	srv.typ = typ
 
-	//TODO 找不到的时候要控制一下
 	methods := suitableMethods(typ, true)
 	if len(methods) == 0 {
 		var errorStr string
@@ -198,7 +197,6 @@ func (s *simpleServer) connhandle(tr transport.Transport) {
 			s.writeErrorResponse(responseMsg, tr, err.Error())
 			return
 		}
-
 		responseMsg.StatusCode = protocol.StatusOK
 		responseMsg.Data = responseData
 
