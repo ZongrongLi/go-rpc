@@ -64,9 +64,8 @@ func main() {
 		return
 	}
 
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 3; i++ {
 
-		//TODO rtt 延时太长了 猜测是json序列化太慢
 		// testrequest := service.TestRequest{i, i + 1}
 		// testresponse := service.TestResponse{}
 		// err := c.Call(ctx, "TestService.Add", &testrequest, &testresponse)
