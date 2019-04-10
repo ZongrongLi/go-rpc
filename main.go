@@ -46,32 +46,27 @@ func StartServer(op *server.Option) {
 
 func makecall(ctx context.Context, c client.SGClient, a, b int) {
 
-	glog.Infof("args A: %d, args B:%d", a, b)
 	arithrequest := service.ArithRequest{a, b}
 	arithresponse := service.ArithResponse{}
 	err := c.Call(ctx, "ArithService.Add", &arithrequest, &arithresponse)
 	if err != nil {
 		glog.Error("Send failed ", err)
 	}
-	glog.Info("====================================TestService.Add", arithresponse)
 
 	err = c.Call(ctx, "ArithService.Minus", &arithrequest, &arithresponse)
 	if err != nil {
 		glog.Error("Send failed ", err)
 	}
-	glog.Info("===================================TestService.Minus", arithresponse)
 
 	err = c.Call(ctx, "ArithService.Mul", &arithrequest, &arithresponse)
 	if err != nil {
 		glog.Error("Send failed ", err)
 	}
-	glog.Info("=====================================TestService.Mul", arithresponse)
 
 	err = c.Call(ctx, "ArithService.Divide", &arithrequest, &arithresponse)
 	if err != nil {
-		glog.Error("============================Send failed ", err)
+		glog.Error("Send failed ", err)
 	}
-	glog.Info("================================TestService.Divide", arithresponse)
 }
 func main() {
 	ctx := context.Background()

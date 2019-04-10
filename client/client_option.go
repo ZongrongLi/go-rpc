@@ -52,6 +52,7 @@ type SGOption struct {
 	Selector selector.Selector
 	FailMode FailMode
 	Retries  int
+	Wrappers []Wrapper
 	Option
 }
 
@@ -61,4 +62,9 @@ var DefaultSGOption = SGOption{
 	Option:   DefaultOption,
 	Retries:  0,
 	Selector: selector.NewRandomSelector(),
+}
+
+func AddWrapper(o *SGOption, w ...Wrapper) *SGOption {
+	o.Wrappers = append(o.Wrappers, w...)
+	return o
 }

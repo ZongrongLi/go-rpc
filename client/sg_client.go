@@ -39,12 +39,15 @@ func NewSGClient(option SGOption) SGClient {
 
 	providers := s.option.Registry.GetServiceList()
 	watcher := s.option.Registry.Watch()
+
 	go s.watchService(watcher)
 	s.serversMu.Lock()
 	defer s.serversMu.Unlock()
 	for _, p := range providers {
 		s.servers = append(s.servers, p)
 	}
+	AddWrapper(&s.option, NewLogWrapper())
+
 	return s
 }
 func (c *sgClient) watchService(watcher registry.Watcher) {
@@ -154,7 +157,7 @@ func (c *sgClient) Call(ctx context.Context, serviceMethod string, arg interface
 		glog.Error("getClient failed！")
 		return nil
 	}
-	err = rpcClient.Call(ctx, serviceMethod, arg, reply)
+	err = c.wrapCall(rpcClient.Call)(ctx, serviceMethod, arg, reply)
 	if err == nil {
 		return nil
 	}
@@ -167,7 +170,7 @@ func (c *sgClient) Call(ctx context.Context, serviceMethod string, arg interface
 		for retries > 0 {
 			retries--
 			if rpcClient != nil {
-				err = rpcClient.Call(ctx, serviceMethod, arg, reply)
+				err = c.wrapCall(rpcClient.Call)(ctx, serviceMethod, arg, reply)
 				if err == nil {
 					return err
 				}
@@ -185,7 +188,7 @@ func (c *sgClient) Call(ctx context.Context, serviceMethod string, arg interface
 		for retries > 0 {
 			retries--
 			if rpcClient != nil {
-				err = rpcClient.Call(ctx, serviceMethod, arg, reply)
+				err = c.wrapCall(rpcClient.Call)(ctx, serviceMethod, arg, reply)
 				if err == nil {
 					return err
 				}
@@ -213,4 +216,10 @@ func (c *sgClient) removeClient(clientKey string, client RPCClient) {
 	if client != nil {
 		client.Close()
 	}
+}
+func (c *sgClient) wrapCall(callFunc CallFunc) CallFunc {
+	for _, wrapper := range c.option.Wrappers {
+		callFunc = wrapper.WrapCall(&c.option, callFunc)
+	}
+	return callFunc
 }
