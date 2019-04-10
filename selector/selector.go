@@ -13,6 +13,7 @@ package selector
 
 import (
 	"context"
+	"math/rand"
 
 	"github.com/golang/glog"
 
@@ -25,12 +26,15 @@ type Selector interface {
 
 var RandomSelectorInstance = RandomSelector{}
 
+//可以接入轮询策略和一致性hash等等
 type RandomSelector struct {
 }
 
 func (RandomSelector) Next(providers []registry.Provider, ctx context.Context, ServiceMethod string, arg interface{}) (p registry.Provider, err error) {
 	glog.Info("selector:Next proceder num:", len(providers))
-	return providers[0], nil
+	i := rand.Intn(len(providers))
+	p = providers[i]
+	return p, nil
 }
 func NewRandomSelector() Selector {
 	return RandomSelectorInstance
