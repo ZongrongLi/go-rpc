@@ -18,6 +18,8 @@ import (
 	"io"
 	"reflect"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/protocol"
@@ -25,13 +27,14 @@ import (
 )
 
 type SGServer struct {
-	tr         transport.ServerTransport
-	serviceMap sync.Map
-	option     Option
-	serializer protocol.Serializer
-	mutex      sync.Mutex
-	protocol   protocol.Protocol
-	shutdown   bool
+	tr               transport.ServerTransport
+	serviceMap       sync.Map
+	option           Option
+	serializer       protocol.Serializer
+	mutex            sync.Mutex
+	protocol         protocol.Protocol
+	requestInProcess int64 //当前正在处理中的总的请求数
+	shutdown         bool
 }
 
 func NewSGmpleServer(op *Option) (RPCServer, error) {
@@ -114,6 +117,8 @@ func (s *SGServer) serveTransport(tr transport.Transport) {
 }
 
 func (s *SGServer) doHandleRequest(ctx context.Context, requestMsg *protocol.Message, responseMsg *protocol.Message, tr transport.Transport) {
+	atomic.AddInt64(&s.requestInProcess, 1)
+	defer atomic.AddInt64(&s.requestInProcess, -1)
 
 	sname := requestMsg.ServiceName
 	mname := requestMsg.MethodName
@@ -224,5 +229,22 @@ func (s *SGServer) Close() error {
 		s.serviceMap.Delete(key)
 		return true
 	})
+
+	//等待当前请求处理完或者直到指定的时间
+	ticker := time.NewTicker(s.option.ShutDownWait)
+	defer ticker.Stop()
+	for {
+		if s.requestInProcess <= 0 {
+			break
+		}
+		select {
+		case <-ticker.C:
+			break
+		default:
+			continue
+		}
+		time.Sleep(time.Millisecond * 200)
+	}
+
 	return err
 }

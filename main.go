@@ -76,6 +76,7 @@ func main() {
 		SerializeType: protocol.SerializeTypeMsgpack,
 		CompressType:  protocol.CompressTypeNone,
 		TransportType: transport.TCPTransport,
+		ShutDownWait:  time.Second * 12,
 	}
 	StartServer(&servertOption)
 	time.Sleep(time.Second * 3)

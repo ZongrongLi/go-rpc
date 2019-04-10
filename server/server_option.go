@@ -12,6 +12,8 @@
 package server
 
 import (
+	"time"
+
 	"github.com/tiancai110a/go-rpc/protocol"
 	"github.com/tiancai110a/go-rpc/transport"
 )
@@ -21,6 +23,7 @@ type Option struct {
 	SerializeType protocol.SerializeType
 	CompressType  protocol.CompressType
 	TransportType transport.TransportType
+	ShutDownWait  time.Duration
 }
 
 var DefaultOption = Option{
@@ -28,4 +31,5 @@ var DefaultOption = Option{
 	SerializeType: protocol.SerializeTypeJson,
 	CompressType:  protocol.CompressTypeNone,
 	TransportType: transport.TCPTransport,
+	ShutDownWait:  time.Second * 12,
 }
