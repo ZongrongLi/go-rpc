@@ -93,6 +93,8 @@ func main() {
 	op.CompressType = protocol.CompressTypeNone
 	op.TransportType = transport.TCPTransport
 	op.ProtocolType = protocol.Default
+	op.FailMode = client.FailRetry
+	op.Retries = 3
 
 	r := memory.NewInMemoryRegistry()
 	r.Register(registry.RegisterOption{"my-app"}, registry.Provider{ProviderKey: "tcp@:8888", Network: "tcp", Addr: ":8888"})

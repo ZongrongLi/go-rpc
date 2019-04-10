@@ -20,6 +20,14 @@ import (
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
+type FailMode byte
+
+const (
+	FailFast  FailMode = iota //快速失败
+	FailOver                  //重试其他服务器
+	FailRetry                 //重试同一个服务器
+)
+
 type Option struct {
 	ProtocolType   protocol.ProtocolType
 	SerializeType  protocol.SerializeType
@@ -41,12 +49,16 @@ var DefaultOption = Option{
 type SGOption struct {
 	AppKey   string
 	Registry registry.Registry
-	Option
 	Selector selector.Selector
+	FailMode FailMode
+	Retries  int
+	Option
 }
 
 var DefaultSGOption = SGOption{
 	AppKey:   "",
+	FailMode: FailFast,
 	Option:   DefaultOption,
+	Retries:  0,
 	Selector: selector.NewRandomSelector(),
 }

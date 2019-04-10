@@ -148,12 +148,69 @@ func (c *sgClient) selectClient(ctx context.Context, ServiceMethod string, arg i
 
 //Call call是调用rpc的入口，pack打包request，send负责序列化和发送
 func (c *sgClient) Call(ctx context.Context, serviceMethod string, arg interface{}, reply interface{}) error {
-	_, client, err := c.selectClient(ctx, serviceMethod, arg)
+	provider, rpcClient, err := c.selectClient(ctx, serviceMethod, arg)
 
 	if err != nil {
 		glog.Error("getClient failed！")
 		return nil
 	}
-	client.Call(ctx, serviceMethod, arg, reply)
+	err = rpcClient.Call(ctx, serviceMethod, arg, reply)
+	if err == nil {
+		return nil
+	}
+	switch c.option.FailMode {
+	case FailFast:
+		glog.Errorf("serviceMethod:%s failed", serviceMethod)
+		return err
+	case FailRetry:
+		retries := c.option.Retries
+		for retries > 0 {
+			retries--
+			if rpcClient != nil {
+				err = rpcClient.Call(ctx, serviceMethod, arg, reply)
+				if err == nil {
+					return err
+				}
+			}
+			c.removeClient(provider.ProviderKey, rpcClient)
+			rpcClient, err = c.getClient(provider)
+
+			if err != nil {
+				glog.Error("getclient err:", err)
+				return err
+			}
+		}
+	case FailOver:
+		retries := c.option.Retries
+		for retries > 0 {
+			retries--
+			if rpcClient != nil {
+				err = rpcClient.Call(ctx, serviceMethod, arg, reply)
+				if err == nil {
+					return err
+				}
+			}
+			c.removeClient(provider.ProviderKey, rpcClient)
+			provider, rpcClient, err = c.selectClient(ctx, serviceMethod, arg)
+
+			if err != nil {
+				glog.Error("selectClient err:", err)
+				return err
+			}
+		}
+
+	default:
+		glog.Errorf("serviceMethod:%s failed", serviceMethod)
+		return err
+
+	}
+
 	return nil
+}
+
+func (c *sgClient) removeClient(clientKey string, client RPCClient) {
+	c.clients.Delete(clientKey)
+	if client != nil {
+		client.Close()
+	}
 }
