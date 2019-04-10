@@ -1,3 +1,14 @@
+/*
+ * File: serializer.go
+ * Project: protocol
+ * File Created: Monday, 8th April 2019 5:09:01 pm
+ * Author: lizongrong (389006500@qq.com)
+ * -----
+ * Last Modified: Wednesday, 10th April 2019 3:56:39 pm
+ * Modified By: lizongrong (389006500@qq.com>)
+ * -----
+ * Copyright 2019 - 2019
+ */
 package protocol
 
 import (

@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/tiancai110a/go-rpc/protocol"
+	"github.com/tiancai110a/go-rpc/registry"
+	"github.com/tiancai110a/go-rpc/selector"
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
@@ -24,12 +26,27 @@ type Option struct {
 	CompressType   protocol.CompressType
 	TransportType  transport.TransportType
 	RequestTimeout time.Duration
+	DialTimeout    time.Duration
 }
 
 var DefaultOption = Option{
 	RequestTimeout: time.Millisecond * 100,
+	DialTimeout:    time.Millisecond * 10,
 	SerializeType:  protocol.SerializeTypeJson,
 	CompressType:   protocol.CompressTypeNone,
 	TransportType:  transport.TCPTransport,
 	ProtocolType:   protocol.Default,
+}
+
+type SGOption struct {
+	AppKey   string
+	Registry registry.Registry
+	Option
+	Selector selector.Selector
+}
+
+var DefaultSGOption = SGOption{
+	AppKey:   "",
+	Option:   DefaultOption,
+	Selector: selector.NewRandomSelector(),
 }

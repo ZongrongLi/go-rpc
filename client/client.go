@@ -97,7 +97,7 @@ func (c *simpleClient) input() {
 func NewRPCClient(network string, addr string, op *Option) (RPCClient, error) {
 	c := simpleClient{}
 	tr := transport.Socket{}
-	err := tr.Dial(network, addr)
+	err := tr.Dial(network, addr, transport.DialOption{Timeout: op.DialTimeout})
 	if err != nil {
 		glog.Error("Connect err:", err)
 		return nil, err

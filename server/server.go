@@ -43,15 +43,6 @@ type service struct {
 	methods map[string]*methodType
 }
 
-//用来传递参数的通用结构体
-type TestRequest struct {
-	A int //发送的参数
-	B int
-}
-
-type TestResponse struct {
-	Reply int //返回的参数
-}
 
 type simpleServer struct {
 	tr         transport.ServerTransport

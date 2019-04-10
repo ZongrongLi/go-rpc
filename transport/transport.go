@@ -14,6 +14,7 @@ package transport
 import (
 	"io"
 	"net"
+	"time"
 
 	"github.com/golang/glog"
 )
@@ -23,7 +24,7 @@ type TransportType byte
 const TCPTransport TransportType = iota
 
 type Transport interface {
-	Dial(network, addr string) error
+	Dial(network, addr string, option DialOption) error
 	io.ReadWriteCloser
 	RemoteAddr() net.Addr
 	LocalAddr() net.Addr
@@ -33,8 +34,12 @@ type Socket struct {
 	conn net.Conn
 }
 
-func (s *Socket) Dial(network, addr string) error {
-	conn, err := net.Dial(network, addr)
+type DialOption struct {
+	Timeout time.Duration
+}
+
+func (s *Socket) Dial(network, addr string, option DialOption) error {
+	conn, err := net.DialTimeout(network, addr, option.Timeout)
 	if err != nil {
 		glog.Error("Dial failed: ", err)
 	}
