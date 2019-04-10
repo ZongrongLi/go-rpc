@@ -24,6 +24,8 @@ type Option struct {
 	CompressType  protocol.CompressType
 	TransportType transport.TransportType
 	ShutDownWait  time.Duration
+	Wrappers      []Wrapper
+	ShutDownHooks []ShutDownHook
 }
 
 var DefaultOption = Option{
@@ -33,3 +35,5 @@ var DefaultOption = Option{
 	TransportType: transport.TCPTransport,
 	ShutDownWait:  time.Second * 12,
 }
+
+type ShutDownHook func(s *SGServer)

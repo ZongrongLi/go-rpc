@@ -18,7 +18,6 @@ import (
 	"io"
 	"reflect"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/golang/glog"
@@ -37,7 +36,7 @@ type SGServer struct {
 	shutdown         bool
 }
 
-func NewSGmpleServer(op *Option) (RPCServer, error) {
+func NewSGServer(op *Option) (RPCServer, error) {
 	s := SGServer{}
 	proto := protocol.ProtocolMap[s.option.ProtocolType]
 	s.protocol = proto
@@ -48,6 +47,11 @@ func NewSGmpleServer(op *Option) (RPCServer, error) {
 	}
 	var err error
 	s.serializer, err = protocol.NewSerializer(s.option.SerializeType)
+	s.option.Wrappers = append(s.option.Wrappers, &DefaultServerWrapper{})
+	s.AddShutdownHook(func(s *SGServer) {
+		s.Close()
+	})
+
 	if err != nil {
 		//glog.Error("new serializer failed", err)
 		return nil, err
@@ -112,13 +116,16 @@ func (s *SGServer) serveTransport(tr transport.Transport) {
 		responseMsg.MessageType = protocol.MessageTypeResponse
 		ctx := context.Background()
 
-		s.doHandleRequest(ctx, requestMsg, responseMsg, tr)
+		s.wrapHandleRequest(s.doHandleRequest)(ctx, requestMsg, responseMsg, tr)
 	}
 }
-
+func (s *SGServer) wrapHandleRequest(handleFunc HandleRequestFunc) HandleRequestFunc {
+	for _, w := range s.option.Wrappers {
+		handleFunc = w.WrapHandleRequest(s, handleFunc)
+	}
+	return handleFunc
+}
 func (s *SGServer) doHandleRequest(ctx context.Context, requestMsg *protocol.Message, responseMsg *protocol.Message, tr transport.Transport) {
-	atomic.AddInt64(&s.requestInProcess, 1)
-	defer atomic.AddInt64(&s.requestInProcess, -1)
 
 	sname := requestMsg.ServiceName
 	mname := requestMsg.MethodName
@@ -177,11 +184,22 @@ func (s *SGServer) doHandleRequest(ctx context.Context, requestMsg *protocol.Mes
 	}
 }
 
+func (s *SGServer) wrapServe(serveFunc ServeFunc) ServeFunc {
+	for _, w := range s.option.Wrappers {
+		serveFunc = w.WrapServe(s, serveFunc)
+	}
+	return serveFunc
+}
 func (s *SGServer) Serve(network string, addr string) error {
+	return s.wrapServe(s.serve)(network, addr)
+}
+
+func (s *SGServer) serve(network string, addr string) error {
 	if s.shutdown {
 		return nil
 	}
 	tr := transport.ServerSocket{}
+	s.tr = &tr
 	defer tr.Close()
 	err := tr.Listen(network, addr)
 	if err != nil {
@@ -218,12 +236,16 @@ func (s *SGServer) writeErrorResponse(responseMsg *protocol.Message, w io.Writer
 	_, _ = w.Write(proto.EncodeMessage(responseMsg, s.serializer))
 }
 
+func (s *SGServer) AddShutdownHook(hook ShutDownHook) {
+	s.mutex.Lock()
+	s.option.ShutDownHooks = append(s.option.ShutDownHooks, hook)
+	s.mutex.Unlock()
+}
+
 func (s *SGServer) Close() error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.shutdown = true
-
-	err := s.tr.Close()
 
 	s.serviceMap.Range(func(key, value interface{}) bool {
 		s.serviceMap.Delete(key)
@@ -245,6 +267,10 @@ func (s *SGServer) Close() error {
 		}
 		time.Sleep(time.Millisecond * 200)
 	}
+	err := s.tr.Close()
 
+	if err != nil {
+		glog.Error("transport has been released")
+	}
 	return err
 }

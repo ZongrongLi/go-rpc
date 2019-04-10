@@ -28,12 +28,12 @@ import (
 
 func StartServer(op *server.Option) {
 	go func() {
-		s, err := server.NewSimpleServer(op)
+		s, err := server.NewSGServer(op)
 		if err != nil {
 			glog.Error("new serializer failed", err)
 			return
 		}
-		//	s.Register(service.TestService{})
+		//s.Register(service.TestService{})
 		err = s.Register(service.ArithService{})
 		if err != nil {
 			glog.Error("Register failed,err:", err)
@@ -103,6 +103,6 @@ func main() {
 		time.Sleep(time.Second)
 	}
 
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 5)
 
 }

@@ -35,7 +35,7 @@ type Registry struct {
 func (r *Registry) Register(option registry.RegisterOption, providers ...registry.Provider) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	glog.Info("==================================================================Register", option.AppKey)
+	glog.Info("==================================================================Register:", option.AppKey)
 	go r.sendWatcherEvent(registry.Create, option.AppKey, providers...)
 
 	var providers2Register []registry.Provider
