@@ -66,6 +66,7 @@ func (c *sgClient) watchService(watcher registry.Watcher) {
 			log.Println("watch service error:" + err.Error())
 			break
 		}
+		glog.Info("========================================service changed!")
 
 		c.serversMu.Lock()
 		c.servers = event.Providers
