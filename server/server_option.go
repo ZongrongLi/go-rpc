@@ -15,17 +15,20 @@ import (
 	"time"
 
 	"github.com/tiancai110a/go-rpc/protocol"
+	"github.com/tiancai110a/go-rpc/registry"
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
 type Option struct {
-	ProtocolType  protocol.ProtocolType
-	SerializeType protocol.SerializeType
-	CompressType  protocol.CompressType
-	TransportType transport.TransportType
-	ShutDownWait  time.Duration
-	Wrappers      []Wrapper
-	ShutDownHooks []ShutDownHook
+	Registry       registry.Registry
+	RegisterOption registry.RegisterOption
+	ProtocolType   protocol.ProtocolType
+	SerializeType  protocol.SerializeType
+	CompressType   protocol.CompressType
+	TransportType  transport.TransportType
+	ShutDownWait   time.Duration
+	Wrappers       []Wrapper
+	ShutDownHooks  []ShutDownHook
 }
 
 var DefaultOption = Option{

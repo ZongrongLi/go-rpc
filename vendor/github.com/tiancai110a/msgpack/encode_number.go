@@ -4,7 +4,7 @@ import (
 	"math"
 	"reflect"
 
-	"github.com/vmihailenco/msgpack/codes"
+	"github.com/tiancai110a/msgpack/codes"
 )
 
 // EncodeUint8 encodes an uint8 in 2 bytes preserving type of the number.

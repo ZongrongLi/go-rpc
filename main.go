@@ -15,12 +15,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/tiancai110a/go-rpc/registry/memory"
+	"github.com/tiancai110a/go-rpc/registry"
 
 	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/client"
 	"github.com/tiancai110a/go-rpc/protocol"
-	"github.com/tiancai110a/go-rpc/registry"
+	"github.com/tiancai110a/go-rpc/registry/zookeeper"
 	"github.com/tiancai110a/go-rpc/server"
 	"github.com/tiancai110a/go-rpc/service"
 	"github.com/tiancai110a/go-rpc/transport"
@@ -40,7 +40,7 @@ func StartServer(op *server.Option) {
 
 		}
 
-		go s.Serve("tcp", ":8888")
+		go s.Serve("tcp", "127.0.0.1:8888")
 	}()
 }
 
@@ -70,14 +70,19 @@ func makecall(ctx context.Context, c client.SGClient, a, b int) {
 }
 func main() {
 	ctx := context.Background()
-
+	//单机伪集群
+	r1 := zookeeper.NewZookeeperRegistry("my-app", "/root/lizongrong/service",
+		[]string{"127.0.0.1:1181", "127.0.0.1:2181", "127.0.0.1:3181"}, 1e10, nil)
 	servertOption := server.Option{
-		ProtocolType:  protocol.Default,
-		SerializeType: protocol.SerializeTypeMsgpack,
-		CompressType:  protocol.CompressTypeNone,
-		TransportType: transport.TCPTransport,
-		ShutDownWait:  time.Second * 12,
+		ProtocolType:   protocol.Default,
+		SerializeType:  protocol.SerializeTypeMsgpack,
+		CompressType:   protocol.CompressTypeNone,
+		TransportType:  transport.TCPTransport,
+		ShutDownWait:   time.Second * 12,
+		Registry:       r1,
+		RegisterOption: registry.RegisterOption{"my-app"},
 	}
+
 	StartServer(&servertOption)
 	time.Sleep(time.Second * 3)
 
@@ -92,9 +97,11 @@ func main() {
 	op.FailMode = client.FailRetry
 	op.Retries = 3
 
-	r := memory.NewInMemoryRegistry()
-	r.Register(registry.RegisterOption{"my-app"}, registry.Provider{ProviderKey: "tcp@:8888", Network: "tcp", Addr: ":8888"})
-	op.Registry = r
+	r2 := zookeeper.NewZookeeperRegistry("my-app", "/root/lizongrong/service",
+		[]string{"127.0.0.1:1181", "127.0.0.1:2181", "127.0.0.1:3181"}, 1e10, nil)
+
+	//r.Register(registry.RegisterOption{"my-app"}, registry.Provider{ProviderKey: "tcp@:8888", Network: "tcp", Addr: ":8888"})
+	op.Registry = r2
 
 	c := client.NewSGClient(*op)
 

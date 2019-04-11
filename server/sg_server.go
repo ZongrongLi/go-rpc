@@ -22,6 +22,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/protocol"
+	"github.com/tiancai110a/go-rpc/registry"
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
@@ -34,6 +35,9 @@ type SGServer struct {
 	protocol         protocol.Protocol
 	requestInProcess int64 //当前正在处理中的总的请求数
 	shutdown         bool
+
+	network string
+	addr    string
 }
 
 func NewSGServer(op *Option) (RPCServer, error) {
@@ -47,15 +51,22 @@ func NewSGServer(op *Option) (RPCServer, error) {
 	}
 	var err error
 	s.serializer, err = protocol.NewSerializer(s.option.SerializeType)
-	s.option.Wrappers = append(s.option.Wrappers, &DefaultServerWrapper{})
-	s.AddShutdownHook(func(s *SGServer) {
-		s.Close()
-	})
-
 	if err != nil {
 		//glog.Error("new serializer failed", err)
 		return nil, err
 	}
+	s.option.Wrappers = append(s.option.Wrappers, &DefaultServerWrapper{})
+
+	s.AddShutdownHook(func(s *SGServer) {
+		provider := registry.Provider{
+			ProviderKey: s.network + "@" + s.addr,
+			Network:     s.network,
+			Addr:        s.addr,
+		}
+		s.option.Registry.Unregister(s.option.RegisterOption, provider)
+		s.Close()
+	})
+
 	return &s, nil
 }
 
@@ -191,6 +202,8 @@ func (s *SGServer) wrapServe(serveFunc ServeFunc) ServeFunc {
 	return serveFunc
 }
 func (s *SGServer) Serve(network string, addr string) error {
+	s.network = network
+	s.addr = addr
 	return s.wrapServe(s.serve)(network, addr)
 }
 

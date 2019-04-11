@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/protocol"
+	"github.com/tiancai110a/go-rpc/registry"
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
@@ -32,7 +33,12 @@ func (w *DefaultServerWrapper) WrapServe(s *SGServer, serveFunc ServeFunc) Serve
 		}(s)
 
 		//这里注册服务
-
+		provider := registry.Provider{
+			ProviderKey: network + "@" + addr,
+			Network:     network,
+			Addr:        addr,
+		}
+		s.option.Registry.Register(s.option.RegisterOption, provider)
 		glog.Error("server started")
 		return serveFunc(network, addr)
 	}

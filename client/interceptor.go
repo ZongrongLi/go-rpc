@@ -27,9 +27,9 @@ func NewLogWrapper() Wrapper {
 
 func (*LogWrapper) WrapCall(option *SGOption, callFunc CallFunc) CallFunc {
 	return func(ctx context.Context, ServiceMethod string, arg interface{}, reply interface{}) error {
-		glog.Info("before calling, ServiceMethod:%+v, arg:%+v", ServiceMethod, arg)
+		glog.Infof("before calling, ServiceMethod:%+v, arg:%+v", ServiceMethod, arg)
 		err := callFunc(ctx, ServiceMethod, arg, reply)
-		glog.Info("after calling, ServiceMethod:%+v, reply:%+v, error: %s", ServiceMethod, reply, err)
+		glog.Infof("after calling, ServiceMethod:%+v, reply:%+v, error: %+v", ServiceMethod, reply, err)
 		return err
 	}
 }

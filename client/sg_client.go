@@ -23,34 +23,40 @@ import (
 
 type SGClient interface {
 	Call(ctx context.Context, serviceMethod string, arg interface{}, reply interface{}) error
+	Close() error
 }
 
 type sgClient struct {
+	shutdown  bool
 	option    SGOption
 	clients   sync.Map //map[string]RPCClient
 	serversMu sync.RWMutex
 	servers   []registry.Provider
+	mu        sync.Mutex
+	watcher   registry.Watcher
 }
 
 //NewRPCClient 工厂函数
 func NewSGClient(option SGOption) SGClient {
-	s := new(sgClient)
-	s.option = option
+	c := new(sgClient)
+	c.option = option
 
-	providers := s.option.Registry.GetServiceList()
-	watcher := s.option.Registry.Watch()
+	providers := c.option.Registry.GetServiceList()
+	c.watcher = c.option.Registry.Watch()
+	glog.Info("==========================================================providers", providers)
 
-	go s.watchService(watcher)
-	s.serversMu.Lock()
-	defer s.serversMu.Unlock()
+	go c.watchService(c.watcher)
+	c.serversMu.Lock()
+	defer c.serversMu.Unlock()
 	for _, p := range providers {
-		s.servers = append(s.servers, p)
+		c.servers = append(c.servers, p)
 	}
-	AddWrapper(&s.option, NewLogWrapper())
+	AddWrapper(&c.option, NewLogWrapper())
 
-	return s
+	return c
 }
 func (c *sgClient) watchService(watcher registry.Watcher) {
+	//索性直接拉全量了
 	if watcher == nil {
 		return
 	}
@@ -61,49 +67,9 @@ func (c *sgClient) watchService(watcher registry.Watcher) {
 			break
 		}
 
-		if event.AppKey == c.option.AppKey {
-			switch event.Action {
-			case registry.Create:
-				glog.Info("========================================created!")
-				c.serversMu.Lock()
-				for _, ep := range event.Providers {
-					exists := false
-					for _, p := range c.servers {
-						if p.ProviderKey == ep.ProviderKey {
-							exists = true
-						}
-					}
-					if !exists {
-						c.servers = append(c.servers, ep)
-					}
-				}
-
-				c.serversMu.Unlock()
-			case registry.Update:
-				c.serversMu.Lock()
-				for _, ep := range event.Providers {
-					for i := range c.servers {
-						if c.servers[i].ProviderKey == ep.ProviderKey {
-							c.servers[i] = ep
-						}
-					}
-				}
-				c.serversMu.Unlock()
-			case registry.Delete:
-				c.serversMu.Lock()
-				var newList []registry.Provider
-				for _, p := range c.servers {
-					for _, ep := range event.Providers {
-						if p.ProviderKey != ep.ProviderKey {
-							newList = append(newList, p)
-						}
-					}
-				}
-				c.servers = newList
-				c.serversMu.Unlock()
-			}
-		}
-
+		c.serversMu.Lock()
+		c.servers = event.Providers
+		c.serversMu.Unlock()
 	}
 }
 
@@ -222,4 +188,24 @@ func (c *sgClient) wrapCall(callFunc CallFunc) CallFunc {
 		callFunc = wrapper.WrapCall(&c.option, callFunc)
 	}
 	return callFunc
+}
+
+func (c *sgClient) Close() error {
+	c.shutdown = true
+
+	c.mu.Lock()
+	c.clients.Range(func(k, v interface{}) bool {
+		if client, ok := v.(simpleClient); ok {
+			c.removeClient(k.(string), &client)
+		}
+		return true
+	})
+	c.mu.Unlock()
+
+	go func() {
+		c.option.Registry.Unwatch(c.watcher)
+		c.watcher.Close()
+	}()
+
+	return nil
 }
