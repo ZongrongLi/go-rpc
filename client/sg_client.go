@@ -55,6 +55,7 @@ func NewSGClient(option SGOption) SGClient {
 		c.servers = append(c.servers, p)
 	}
 	AddWrapper(&c.option, NewLogWrapper())
+	AddWrapper(&c.option, NewMetaDataWrapper())
 	if c.option.Heartbeat {
 		go c.heartbeat()
 		c.option.SelectOption.Filters = append(c.option.SelectOption.Filters, selector.DegradeProviderFilter)

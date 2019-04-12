@@ -104,6 +104,7 @@ func main() {
 	op.ProtocolType = protocol.Default
 	op.FailMode = client.FailRetry
 	op.Retries = 3
+	op.Auth = "hello01"
 
 	r2 := zookeeper.NewZookeeperRegistry("my-app", "/root/lizongrong/service",
 		[]string{"127.0.0.1:1181", "127.0.0.1:2181", "127.0.0.1:3181"}, 1e10, nil)
@@ -118,7 +119,7 @@ func main() {
 		time.Sleep(time.Second)
 	}
 
-	gs.Close()
+	//gs.Close()
 	time.Sleep(time.Second * 13)
 	for i := 0; i < 2; i++ {
 		makecall(ctx, c, i, i+1)

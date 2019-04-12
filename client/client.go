@@ -200,6 +200,10 @@ func (c *simpleClient) send(ctx context.Context, call *Call) error {
 	} else {
 		requestMsg.MessageType = protocol.MessageTypeHeartbeat
 	}
+	if ctx.Value(protocol.MetaDataKey) != nil {
+		requestMsg.MetaData = ctx.Value(protocol.MetaDataKey).(map[string]interface{})
+	}
+
 	requestdata, err := c.serializer.Marshal(call.Args)
 
 	requestMsg.Data = requestdata

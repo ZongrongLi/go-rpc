@@ -52,3 +52,48 @@ func (w *DefaultServerWrapper) WrapHandleRequest(s *SGServer, requestFunc Handle
 		requestFunc(ctx, request, response, tr)
 	}
 }
+
+type ServerAuthInterceptor struct {
+	authFunc AuthFunc
+}
+
+func NewAuthInterceptor(authFunc AuthFunc) Wrapper {
+	return &ServerAuthInterceptor{authFunc}
+}
+
+func (*ServerAuthInterceptor) WrapServe(s *SGServer, serveFunc ServeFunc) ServeFunc {
+	return serveFunc
+}
+
+func (sai *ServerAuthInterceptor) WrapHandleRequest(s *SGServer, requestFunc HandleRequestFunc) HandleRequestFunc {
+	return func(ctx context.Context, request *protocol.Message, response *protocol.Message, tr transport.Transport) {
+		//心跳不鉴权
+		if request.MessageType == protocol.MessageTypeHeartbeat {
+			requestFunc(ctx, response, response, tr)
+			return
+		}
+		auth, ok := request.MetaData[protocol.AuthKey].(string)
+		if ok {
+			//鉴权通过则执行业务逻辑
+			if sai.authFunc(auth) {
+				glog.Info("==============================auth passed")
+				requestFunc(ctx, response, response, tr)
+				return
+			}
+		}
+
+		auth, ok = ctx.Value(protocol.AuthKey).(string)
+		if ok {
+			//鉴权通过则执行业务逻辑
+			if sai.authFunc(auth) {
+				glog.Info("==============================auth passed")
+				requestFunc(ctx, response, response, tr)
+				return
+			}
+		}
+
+		//鉴权失败则返回异常
+		glog.Info("==============================auth reject", auth)
+		s.writeErrorResponse(response, tr, "auth failed")
+	}
+}

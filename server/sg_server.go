@@ -55,7 +55,16 @@ func NewSGServer(op *Option) (RPCServer, error) {
 		//glog.Error("new serializer failed", err)
 		return nil, err
 	}
+
+	//auth
+	authWrapper := NewAuthInterceptor(func(key string) bool {
+		if len(key) >= 5 && key[:5] == "hello" {
+			return true
+		}
+		return false
+	})
 	s.option.Wrappers = append(s.option.Wrappers, &DefaultServerWrapper{})
+	s.option.Wrappers = append(s.option.Wrappers, authWrapper)
 
 	s.AddShutdownHook(func(s *SGServer) {
 		provider := registry.Provider{

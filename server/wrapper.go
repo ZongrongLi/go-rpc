@@ -20,6 +20,7 @@ import (
 
 type ServeFunc func(network string, addr string) error
 type HandleRequestFunc func(ctx context.Context, request *protocol.Message, response *protocol.Message, tr transport.Transport)
+type AuthFunc func(key string) bool
 
 type Wrapper interface {
 	WrapServe(s *SGServer, serveFunc ServeFunc) ServeFunc

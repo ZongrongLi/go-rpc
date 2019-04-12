@@ -56,6 +56,7 @@ var DefaultOption = Option{
 
 type SGOption struct {
 	AppKey       string
+	Auth         string
 	Registry     registry.Registry
 	Selector     selector.Selector
 	FailMode     FailMode

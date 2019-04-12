@@ -15,6 +15,8 @@ package client
 import (
 	"context"
 
+	"github.com/tiancai110a/go-rpc/protocol"
+
 	"github.com/golang/glog"
 )
 
@@ -32,4 +34,41 @@ func (*LogWrapper) WrapCall(option *SGOption, callFunc CallFunc) CallFunc {
 		glog.Infof("after calling, ServiceMethod:%+v, reply:%+v, error: %+v", ServiceMethod, reply, err)
 		return err
 	}
+}
+
+type MetaDataWrapper struct {
+}
+
+func NewMetaDataWrapper() *MetaDataWrapper {
+	return &MetaDataWrapper{}
+}
+
+func (w *MetaDataWrapper) WrapCall(option *SGOption, callFunc CallFunc) CallFunc {
+	return func(ctx context.Context, ServiceMethod string, arg interface{}, reply interface{}) error {
+		ctx = wrapContext(ctx, option)
+		return callFunc(ctx, ServiceMethod, arg, reply)
+	}
+}
+
+//鉴权的key可以由上家穿透过来或者配置里直接指定，优先级上家>配置
+func wrapContext(ctx context.Context, option *SGOption) context.Context {
+
+	metaDataInterface := ctx.Value(protocol.MetaDataKey)
+	var metaData map[string]interface{}
+	if metaDataInterface == nil {
+		metaData = make(map[string]interface{})
+	} else {
+		metaData = metaDataInterface.(map[string]interface{})
+	}
+
+	if option.Auth != "" {
+		metaData[protocol.AuthKey] = option.Auth
+	}
+
+	if auth, ok := ctx.Value(protocol.AuthKey).(string); ok {
+		metaData[protocol.AuthKey] = auth
+	}
+	ctx = context.WithValue(ctx, protocol.MetaDataKey, metaData)
+	return ctx
+
 }

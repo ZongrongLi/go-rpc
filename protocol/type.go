@@ -49,4 +49,6 @@ const (
 
 const (
 	RequestSeqKey = "rpc_request_seq"
+	AuthKey       = "rpc_auth"
+	MetaDataKey   = "rpc_meta_data"
 )

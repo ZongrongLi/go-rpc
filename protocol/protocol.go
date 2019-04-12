@@ -25,15 +25,15 @@ import (
 )
 
 type Header struct {
-	Seq           uint64            //序号, 用来唯一标识请求或响应
-	MessageType   MessageType       //消息类型，用来标识一个消息是请求还是响应
-	CompressType  CompressType      //压缩类型，用来标识一个消息的压缩方式
-	SerializeType SerializeType     //序列化类型，用来标识消息体采用的编码方式
-	StatusCode    StatusCode        //状态类型，用来标识一个请求是正常还是异常
-	ServiceName   string            //服务名
-	MethodName    string            //方法名
-	Error         string            //方法调用发生的异常
-	MetaData      map[string]string //其他元数据
+	Seq           uint64                 //序号, 用来唯一标识请求或响应
+	MessageType   MessageType            //消息类型，用来标识一个消息是请求还是响应
+	CompressType  CompressType           //压缩类型，用来标识一个消息的压缩方式
+	SerializeType SerializeType          //序列化类型，用来标识消息体采用的编码方式
+	StatusCode    StatusCode             //状态类型，用来标识一个请求是正常还是异常
+	ServiceName   string                 //服务名
+	MethodName    string                 //方法名
+	Error         string                 //方法调用发生的异常
+	MetaData      map[string]interface{} //其他元数据
 }
 
 type Message struct {
