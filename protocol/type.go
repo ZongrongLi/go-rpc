@@ -25,6 +25,7 @@ type MessageType byte
 const (
 	MessageTypeRequest MessageType = iota
 	MessageTypeResponse
+	MessageTypeHeartbeat
 )
 
 type CompressType byte

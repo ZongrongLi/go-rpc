@@ -26,6 +26,9 @@ import (
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
+//用来停止server，测试心跳功能
+var gs server.RPCServer
+
 func StartServer(op *server.Option) {
 	go func() {
 		s, err := server.NewSGServer(op)
@@ -35,6 +38,8 @@ func StartServer(op *server.Option) {
 		}
 		//s.Register(service.TestService{})
 		err = s.Register(service.ArithService{})
+
+		gs = s
 		if err != nil {
 			glog.Error("Register failed,err:", err)
 
@@ -84,12 +89,15 @@ func main() {
 	}
 
 	StartServer(&servertOption)
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second)
 
 	op := &client.DefaultSGOption
 	op.AppKey = "my-app"
 	op.RequestTimeout = time.Millisecond * 100
 	op.DialTimeout = time.Millisecond * 100
+	op.HeartbeatInterval = time.Second
+	op.HeartbeatDegradeThreshold = 20
+	op.Heartbeat = true
 	op.SerializeType = protocol.SerializeTypeMsgpack
 	op.CompressType = protocol.CompressTypeNone
 	op.TransportType = transport.TCPTransport
@@ -110,6 +118,9 @@ func main() {
 		time.Sleep(time.Second)
 	}
 
+	time.Sleep(time.Second * 13)
+	//停掉服务器
+	//gs.Close()
 	time.Sleep(time.Second * 265)
 
 }

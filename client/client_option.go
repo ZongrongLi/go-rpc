@@ -29,21 +29,29 @@ const (
 )
 
 type Option struct {
-	ProtocolType   protocol.ProtocolType
-	SerializeType  protocol.SerializeType
-	CompressType   protocol.CompressType
-	TransportType  transport.TransportType
-	RequestTimeout time.Duration
-	DialTimeout    time.Duration
+	ProtocolType              protocol.ProtocolType
+	SerializeType             protocol.SerializeType
+	CompressType              protocol.CompressType
+	TransportType             transport.TransportType
+	RequestTimeout            time.Duration
+	DialTimeout               time.Duration
+	HeartbeatInterval         time.Duration
+	HeartbeatDegradeThreshold int
+	Heartbeat                 bool
 }
 
 var DefaultOption = Option{
 	RequestTimeout: time.Millisecond * 100,
 	DialTimeout:    time.Millisecond * 10,
-	SerializeType:  protocol.SerializeTypeJson,
-	CompressType:   protocol.CompressTypeNone,
-	TransportType:  transport.TCPTransport,
-	ProtocolType:   protocol.Default,
+
+	HeartbeatInterval:         time.Second,
+	Heartbeat:                 false,
+	HeartbeatDegradeThreshold: 20,
+
+	SerializeType: protocol.SerializeTypeJson,
+	CompressType:  protocol.CompressTypeNone,
+	TransportType: transport.TCPTransport,
+	ProtocolType:  protocol.Default,
 }
 
 type SGOption struct {

@@ -124,7 +124,9 @@ func (s *SGServer) serveTransport(tr transport.Transport) {
 		}
 
 		responseMsg := requestMsg.Clone()
-		responseMsg.MessageType = protocol.MessageTypeResponse
+		if requestMsg.MessageType == protocol.MessageTypeRequest {
+			responseMsg.MessageType = protocol.MessageTypeResponse
+		}
 		ctx := context.Background()
 
 		s.wrapHandleRequest(s.doHandleRequest)(ctx, requestMsg, responseMsg, tr)
@@ -137,7 +139,12 @@ func (s *SGServer) wrapHandleRequest(handleFunc HandleRequestFunc) HandleRequest
 	return handleFunc
 }
 func (s *SGServer) doHandleRequest(ctx context.Context, requestMsg *protocol.Message, responseMsg *protocol.Message, tr transport.Transport) {
-
+	if requestMsg.MessageType == protocol.MessageTypeHeartbeat {
+		glog.Info("=================================hearbeat received")
+		responseMsg.Data = responseMsg.Data[:0]
+		tr.Write(s.protocol.EncodeMessage(responseMsg, s.serializer))
+		return
+	}
 	sname := requestMsg.ServiceName
 	mname := requestMsg.MethodName
 

@@ -79,10 +79,14 @@ func (c *simpleClient) input() {
 		case call == nil:
 			glog.Error("call is canceled before")
 		default:
+			glog.Info("------------------------------------------", responseMsg.Header, responseMsg.Data)
+			if responseMsg.MessageType == protocol.MessageTypeHeartbeat {
+				call.done()
+				continue
+			}
 			err = c.serializer.Unmarshal(responseMsg.Data, call.Reply)
-
 			if err != nil {
-				glog.Error("read failed: ", err)
+				glog.Error("Unmarshal failed: ", err)
 				continue
 			}
 			//glog.Infof("=====>%p %+v %+v", call.Response, call.Response, response)
@@ -183,16 +187,22 @@ func (c *simpleClient) send(ctx context.Context, call *Call) error {
 	requestMsg := proto.NewMessage()
 	requestMsg.Seq = seq
 	requestMsg.MessageType = protocol.MessageTypeRequest
-	serviceMethod := strings.SplitN(call.ServiceMethod, ".", 2)
-	if len(serviceMethod) != 2 {
-		glog.Error("wrong request name")
-	}
-	requestMsg.ServiceName = serviceMethod[0]
-	requestMsg.MethodName = serviceMethod[1]
-	requestMsg.SerializeType = c.option.SerializeType
-	requestMsg.CompressType = protocol.CompressTypeNone
 
+	if call.ServiceMethod != "" {
+		serviceMethod := strings.SplitN(call.ServiceMethod, ".", 2)
+		if len(serviceMethod) != 2 {
+			glog.Error("wrong request name")
+			return errors.New("wrong request name")
+		}
+		requestMsg.ServiceName = serviceMethod[0]
+		requestMsg.MethodName = serviceMethod[1]
+		requestMsg.SerializeType = c.option.SerializeType
+		requestMsg.CompressType = protocol.CompressTypeNone
+	} else {
+		requestMsg.MessageType = protocol.MessageTypeHeartbeat
+	}
 	requestdata, err := c.serializer.Marshal(call.Args)
+
 	requestMsg.Data = requestdata
 	data := proto.EncodeMessage(requestMsg, c.serializer)
 

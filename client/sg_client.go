@@ -15,6 +15,7 @@ import (
 	"context"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/golang/glog"
 
@@ -27,13 +28,14 @@ type SGClient interface {
 }
 
 type sgClient struct {
-	shutdown  bool
-	option    SGOption
-	clients   sync.Map //map[string]RPCClient
-	serversMu sync.RWMutex
-	servers   []registry.Provider
-	mu        sync.Mutex
-	watcher   registry.Watcher
+	shutdown             bool
+	option               SGOption
+	clients              sync.Map       //map[string]RPCClient
+	clientsHeartbeatFail map[string]int //TODO：考虑要不要绑定clients封装成一个结构体
+	serversMu            sync.RWMutex
+	servers              []registry.Provider
+	mu                   sync.Mutex
+	watcher              registry.Watcher
 }
 
 //NewRPCClient 工厂函数
@@ -52,7 +54,10 @@ func NewSGClient(option SGOption) SGClient {
 		c.servers = append(c.servers, p)
 	}
 	AddWrapper(&c.option, NewLogWrapper())
-
+	if c.option.Heartbeat {
+		go c.heartbeat()
+	}
+	c.clientsHeartbeatFail = make(map[string]int, 0)
 	return c
 }
 func (c *sgClient) watchService(watcher registry.Watcher) {
@@ -209,4 +214,57 @@ func (c *sgClient) Close() error {
 	}()
 
 	return nil
+}
+
+func (c *sgClient) heartbeat() {
+	if c.option.HeartbeatInterval <= 0 {
+		return
+	}
+	//根据指定的时间间隔发送心跳
+	t := time.NewTicker(c.option.HeartbeatInterval)
+	for range t.C {
+		if c.shutdown {
+			t.Stop()
+			return
+		}
+		//遍历每个RPCClient进行心跳检查
+		c.clients.Range(func(k, v interface{}) bool {
+			err := v.(RPCClient).Call(context.Background(), "", "", nil)
+			c.mu.Lock()
+			if err != nil {
+				glog.Info("========================================heartbeat failed")
+				//心跳失败进行计数
+				if fail, ok := c.clientsHeartbeatFail[k.(string)]; ok {
+					fail++
+					c.clientsHeartbeatFail[k.(string)] = fail
+				} else {
+					c.clientsHeartbeatFail[k.(string)] = 1
+				}
+			} else {
+				glog.Info("========================================heartbeat succeed")
+				//心跳成功则进行恢复
+				c.clientsHeartbeatFail[k.(string)] = 0
+				c.serversMu.Lock()
+				for _, p := range c.servers {
+					if p.ProviderKey == k {
+						//========================================================恢复降级
+
+					}
+				}
+				c.serversMu.Unlock()
+			}
+			c.mu.Unlock()
+			//心跳失败次数超过阈值则进行降级
+			if c.clientsHeartbeatFail[k.(string)] > c.option.HeartbeatDegradeThreshold {
+				c.serversMu.Lock()
+				for _, p := range c.servers {
+					if p.ProviderKey == k {
+						//========================================================执行降级
+					}
+				}
+				c.serversMu.Unlock()
+			}
+			return true
+		})
+	}
 }
