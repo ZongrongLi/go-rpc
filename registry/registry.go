@@ -46,6 +46,7 @@ type Provider struct {
 	ProviderKey string // Network+"@"+Addr
 	Network     string
 	Addr        string
+	Isdegred    bool
 	Meta        map[string]string
 }
 

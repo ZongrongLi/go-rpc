@@ -79,7 +79,6 @@ func (c *simpleClient) input() {
 		case call == nil:
 			glog.Error("call is canceled before")
 		default:
-			glog.Info("------------------------------------------", responseMsg.Header, responseMsg.Data)
 			if responseMsg.MessageType == protocol.MessageTypeHeartbeat {
 				call.done()
 				continue

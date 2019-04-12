@@ -13,6 +13,7 @@ package selector
 
 import (
 	"context"
+	"errors"
 	"math/rand"
 
 	"github.com/golang/glog"
@@ -20,8 +21,18 @@ import (
 	"github.com/tiancai110a/go-rpc/registry"
 )
 
+type Filter func(provider registry.Provider, ctx context.Context, ServiceMethod string, arg interface{}) bool
+
+type SelectOption struct {
+	Filters []Filter
+}
+
+func DegradeProviderFilter(provider registry.Provider, ctx context.Context, ServiceMethod string, arg interface{}) bool {
+	return !provider.Isdegred
+}
+
 type Selector interface {
-	Next(providers []registry.Provider, ctx context.Context, ServiceMethod string, arg interface{}) (registry.Provider, error)
+	Next(providers []registry.Provider, ctx context.Context, ServiceMethod string, arg interface{}, opt SelectOption) (registry.Provider, error)
 }
 
 var RandomSelectorInstance = RandomSelector{}
@@ -30,12 +41,39 @@ var RandomSelectorInstance = RandomSelector{}
 type RandomSelector struct {
 }
 
-func (RandomSelector) Next(providers []registry.Provider, ctx context.Context, ServiceMethod string, arg interface{}) (p registry.Provider, err error) {
+func (RandomSelector) Next(providers []registry.Provider, ctx context.Context, ServiceMethod string, arg interface{}, opt SelectOption) (p registry.Provider, err error) {
 	glog.Info("selector:Next proceder num:", len(providers))
+
+	filters := combineFilter(opt.Filters)
+	list := make([]registry.Provider, 0)
+	for _, p := range providers {
+		if filters(p, ctx, ServiceMethod, arg) {
+			list = append(list, p)
+		} else {
+			glog.Info("=====================================================degraded")
+		}
+	}
+
+	if len(list) == 0 {
+		err = errors.New("provider list is empty")
+		return
+	}
 	i := rand.Intn(len(providers))
 	p = providers[i]
 	return p, nil
 }
+
+func combineFilter(filters []Filter) Filter {
+	return func(provider registry.Provider, ctx context.Context, ServiceMethod string, arg interface{}) bool {
+		for _, f := range filters {
+			if !f(provider, ctx, ServiceMethod, arg) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
 func NewRandomSelector() Selector {
 	return RandomSelectorInstance
 }

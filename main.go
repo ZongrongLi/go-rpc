@@ -96,7 +96,7 @@ func main() {
 	op.RequestTimeout = time.Millisecond * 100
 	op.DialTimeout = time.Millisecond * 100
 	op.HeartbeatInterval = time.Second
-	op.HeartbeatDegradeThreshold = 20
+	op.HeartbeatDegradeThreshold = 5
 	op.Heartbeat = true
 	op.SerializeType = protocol.SerializeTypeMsgpack
 	op.CompressType = protocol.CompressTypeNone
@@ -118,9 +118,12 @@ func main() {
 		time.Sleep(time.Second)
 	}
 
+	gs.Close()
 	time.Sleep(time.Second * 13)
-	//停掉服务器
-	//gs.Close()
+	for i := 0; i < 2; i++ {
+		makecall(ctx, c, i, i+1)
+		time.Sleep(time.Second)
+	}
 	time.Sleep(time.Second * 265)
 
 }

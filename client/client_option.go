@@ -55,12 +55,13 @@ var DefaultOption = Option{
 }
 
 type SGOption struct {
-	AppKey   string
-	Registry registry.Registry
-	Selector selector.Selector
-	FailMode FailMode
-	Retries  int
-	Wrappers []Wrapper
+	AppKey       string
+	Registry     registry.Registry
+	Selector     selector.Selector
+	FailMode     FailMode
+	Retries      int
+	Wrappers     []Wrapper
+	SelectOption selector.SelectOption
 	Option
 }
 

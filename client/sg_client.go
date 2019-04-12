@@ -20,6 +20,7 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/tiancai110a/go-rpc/registry"
+	"github.com/tiancai110a/go-rpc/selector"
 )
 
 type SGClient interface {
@@ -56,8 +57,10 @@ func NewSGClient(option SGOption) SGClient {
 	AddWrapper(&c.option, NewLogWrapper())
 	if c.option.Heartbeat {
 		go c.heartbeat()
+		c.option.SelectOption.Filters = append(c.option.SelectOption.Filters, selector.DegradeProviderFilter)
 	}
 	c.clientsHeartbeatFail = make(map[string]int, 0)
+
 	return c
 }
 func (c *sgClient) watchService(watcher registry.Watcher) {
@@ -107,10 +110,10 @@ func (c *sgClient) selectClient(ctx context.Context, ServiceMethod string, arg i
 
 	//得到下一个provider然后调用client
 
-	provider, err := c.option.Selector.Next(c.providers(), ctx, ServiceMethod, arg)
+	provider, err := c.option.Selector.Next(c.providers(), ctx, ServiceMethod, arg, c.option.SelectOption)
 	if err != nil {
 		glog.Error("selector failed！", err)
-		return registry.Provider{}, nil, nil
+		return registry.Provider{}, nil, err
 	}
 
 	client, err := c.getClient(provider)
@@ -127,7 +130,7 @@ func (c *sgClient) Call(ctx context.Context, serviceMethod string, arg interface
 
 	if err != nil {
 		glog.Error("getClient failed！")
-		return nil
+		return err
 	}
 	err = c.wrapCall(rpcClient.Call)(ctx, serviceMethod, arg, reply)
 	if err == nil {
@@ -227,8 +230,10 @@ func (c *sgClient) heartbeat() {
 			t.Stop()
 			return
 		}
+
 		//遍历每个RPCClient进行心跳检查
 		c.clients.Range(func(k, v interface{}) bool {
+
 			err := v.(RPCClient).Call(context.Background(), "", "", nil)
 			c.mu.Lock()
 			if err != nil {
@@ -245,10 +250,9 @@ func (c *sgClient) heartbeat() {
 				//心跳成功则进行恢复
 				c.clientsHeartbeatFail[k.(string)] = 0
 				c.serversMu.Lock()
-				for _, p := range c.servers {
+				for i, p := range c.servers {
 					if p.ProviderKey == k {
-						//========================================================恢复降级
-
+						c.servers[i].Isdegred = false
 					}
 				}
 				c.serversMu.Unlock()
@@ -257,9 +261,11 @@ func (c *sgClient) heartbeat() {
 			//心跳失败次数超过阈值则进行降级
 			if c.clientsHeartbeatFail[k.(string)] > c.option.HeartbeatDegradeThreshold {
 				c.serversMu.Lock()
-				for _, p := range c.servers {
+				for i, p := range c.servers {
 					if p.ProviderKey == k {
-						//========================================================执行降级
+						//执行降级
+						glog.Info("--------------------------------------------------------------degred")
+						c.servers[i].Isdegred = true
 					}
 				}
 				c.serversMu.Unlock()
