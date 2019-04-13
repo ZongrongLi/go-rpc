@@ -18,3 +18,10 @@ type CallFunc func(ctx context.Context, ServiceMethod string, arg interface{}, r
 type Wrapper interface {
 	WrapCall(option *SGOption, callFunc CallFunc) CallFunc
 }
+
+type DefaultClientInterceptor struct {
+}
+
+func (DefaultClientInterceptor) WrapCall(option *SGOption, callFunc CallFunc) CallFunc {
+	return callFunc
+}

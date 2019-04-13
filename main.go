@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/libkv/store"
+	"github.com/tiancai110a/go-rpc/ratelimit"
 	"github.com/tiancai110a/go-rpc/registry"
 	"github.com/tiancai110a/go-rpc/registry/libkv"
 
@@ -110,8 +111,10 @@ func main() {
 	op.Retries = 3
 	op.Auth = "hello01"
 	//一秒钟失败20次 就会进入贤者模式.. 因为lastupdate时间在不断更新，熔断后继续调用有可能恢复
-	op.CircuitBreakerThreshold = 2
-	op.CircuitBreakerWindow = time.Second * 5
+	op.CircuitBreakerThreshold = 20
+	op.CircuitBreakerWindow = time.Second
+
+	op.Wrappers = append(op.Wrappers, &client.RateLimitInterceptor{Limit: ratelimit.NewRateLimiter(10, 2)}) //一秒10个，最多有两个排队
 
 	r2 := libkv.NewKVRegistry(store.ZK, "my-app", "/root/lizongrong/service",
 		[]string{"127.0.0.1:1181", "127.0.0.1:2181", "127.0.0.1:3181"}, 1e10, nil)

@@ -63,8 +63,12 @@ func NewSGServer(op *Option) (RPCServer, error) {
 		}
 		return false
 	})
+
 	s.option.Wrappers = append(s.option.Wrappers, &DefaultServerWrapper{})
 	s.option.Wrappers = append(s.option.Wrappers, authWrapper)
+
+	//rateLimitor := NewRequestRateLimitInterceptor(rlimit)
+	// s.option.Wrappers = append(s.option.Wrappers, rateLimitor)
 
 	s.AddShutdownHook(func(s *SGServer) {
 		provider := registry.Provider{

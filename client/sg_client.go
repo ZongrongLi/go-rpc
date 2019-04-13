@@ -58,6 +58,8 @@ func NewSGClient(option SGOption) SGClient {
 	}
 	AddWrapper(&c.option, NewLogWrapper())
 	AddWrapper(&c.option, NewMetaDataWrapper())
+	//AddWrapper(&c.option, &RateLimitInterceptor{Limit: &ratelimit.DefaultRateLimiter{Num: 1}})
+
 	if c.option.Heartbeat {
 		go c.heartbeat()
 		c.option.SelectOption.Filters = append(c.option.SelectOption.Filters, selector.DegradeProviderFilter)
