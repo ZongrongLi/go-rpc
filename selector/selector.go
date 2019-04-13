@@ -50,7 +50,7 @@ func (RandomSelector) Next(providers []registry.Provider, ctx context.Context, S
 		if filters(p, ctx, ServiceMethod, arg) {
 			list = append(list, p)
 		} else {
-			glog.Info("=====================================================degraded")
+			glog.Info("degraded")
 		}
 	}
 

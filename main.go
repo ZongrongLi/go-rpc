@@ -105,6 +105,9 @@ func main() {
 	op.FailMode = client.FailRetry
 	op.Retries = 3
 	op.Auth = "hello01"
+	//一秒钟失败20次 就会进入贤者模式.. 因为lastupdate时间在不断更新，熔断后继续调用有可能恢复
+	op.CircuitBreakerThreshold = 2
+	op.CircuitBreakerWindow = time.Second * 5
 
 	r2 := zookeeper.NewZookeeperRegistry("my-app", "/root/lizongrong/service",
 		[]string{"127.0.0.1:1181", "127.0.0.1:2181", "127.0.0.1:3181"}, 1e10, nil)
@@ -120,8 +123,8 @@ func main() {
 	}
 
 	//gs.Close()
-	time.Sleep(time.Second * 13)
-	for i := 0; i < 2; i++ {
+	time.Sleep(time.Second * 3)
+	for i := 0; i < 2000; i++ {
 		makecall(ctx, c, i, i+1)
 		time.Sleep(time.Second)
 	}

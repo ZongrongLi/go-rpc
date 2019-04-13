@@ -63,6 +63,10 @@ type SGOption struct {
 	Retries      int
 	Wrappers     []Wrapper
 	SelectOption selector.SelectOption
+
+	CircuitBreakerThreshold uint64
+	CircuitBreakerWindow    time.Duration
+
 	Option
 }
 

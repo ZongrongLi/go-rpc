@@ -13,6 +13,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"log"
 	"sync"
 	"time"
@@ -33,6 +34,7 @@ type sgClient struct {
 	option               SGOption
 	clients              sync.Map       //map[string]RPCClient
 	clientsHeartbeatFail map[string]int //TODO：考虑要不要绑定clients封装成一个结构体
+	breakers             sync.Map       //map[string]CircuitBreaker   clients 的信息越加越多，要单独放一个结构体
 	serversMu            sync.RWMutex
 	servers              []registry.Provider
 	mu                   sync.Mutex
@@ -46,7 +48,7 @@ func NewSGClient(option SGOption) SGClient {
 
 	providers := c.option.Registry.GetServiceList()
 	c.watcher = c.option.Registry.Watch()
-	glog.Info("==========================================================providers", providers)
+	glog.Info("providers", providers)
 
 	go c.watchService(c.watcher)
 	c.serversMu.Lock()
@@ -75,7 +77,7 @@ func (c *sgClient) watchService(watcher registry.Watcher) {
 			log.Println("watch service error:" + err.Error())
 			break
 		}
-		glog.Info("========================================service changed!")
+		glog.Info("service changed!")
 
 		c.serversMu.Lock()
 		c.servers = event.Providers
@@ -85,8 +87,13 @@ func (c *sgClient) watchService(watcher registry.Watcher) {
 
 func (c *sgClient) getClient(provider registry.Provider) (cl RPCClient, err error) {
 	key := provider.ProviderKey
+	breaker, ok := c.breakers.Load(key)
+	if ok && !breaker.(CircuitBreaker).AllowRequest() {
+		glog.Info("circuit breaker triggered")
+		return nil, errors.New("breaker open") //TODO error全部收敛到一个文件中
+	}
+	glog.Info("circuit breaker passed")
 	rc, ok := c.clients.Load(key)
-
 	if ok {
 		glog.Info("get client from pool")
 		cl = rc.(RPCClient)
@@ -97,6 +104,9 @@ func (c *sgClient) getClient(provider registry.Provider) (cl RPCClient, err erro
 			return
 		}
 		c.clients.Store(key, cl)
+		if c.option.CircuitBreakerThreshold > 0 && c.option.CircuitBreakerWindow > 0 {
+			c.breakers.Store(key, NewDefaultCircuitBreaker(c.option.CircuitBreakerThreshold, c.option.CircuitBreakerWindow))
+		}
 	}
 	return
 }
@@ -133,6 +143,10 @@ func (c *sgClient) Call(ctx context.Context, serviceMethod string, arg interface
 		glog.Error("getClient failed！")
 		return err
 	}
+	if rpcClient == nil {
+		glog.Error("getClient failed！")
+		return errors.New("getClient failed！")
+	}
 	err = c.wrapCall(rpcClient.Call)(ctx, serviceMethod, arg, reply)
 	if err == nil {
 		return nil
@@ -148,16 +162,23 @@ func (c *sgClient) Call(ctx context.Context, serviceMethod string, arg interface
 			if rpcClient != nil {
 				err = c.wrapCall(rpcClient.Call)(ctx, serviceMethod, arg, reply)
 				if err == nil {
+					if breaker, ok := c.breakers.Load(provider.ProviderKey); ok {
+						breaker.(CircuitBreaker).Success()
+					}
+					return err
+				}
+
+				if err != nil {
+					glog.Error("getclient err:", err)
+					if breaker, ok := c.breakers.Load(provider.ProviderKey); ok {
+						breaker.(CircuitBreaker).Fail(err)
+					}
 					return err
 				}
 			}
+
 			c.removeClient(provider.ProviderKey, rpcClient)
 			rpcClient, err = c.getClient(provider)
-
-			if err != nil {
-				glog.Error("getclient err:", err)
-				return err
-			}
 		}
 	case FailOver:
 		retries := c.option.Retries
@@ -166,16 +187,22 @@ func (c *sgClient) Call(ctx context.Context, serviceMethod string, arg interface
 			if rpcClient != nil {
 				err = c.wrapCall(rpcClient.Call)(ctx, serviceMethod, arg, reply)
 				if err == nil {
+					if breaker, ok := c.breakers.Load(provider.ProviderKey); ok {
+						breaker.(CircuitBreaker).Success()
+					}
+					return err
+				}
+
+				if err != nil {
+					glog.Error("selectClient err:", err)
+					if breaker, ok := c.breakers.Load(provider.ProviderKey); ok {
+						breaker.(CircuitBreaker).Fail(err)
+					}
 					return err
 				}
 			}
 			c.removeClient(provider.ProviderKey, rpcClient)
 			provider, rpcClient, err = c.selectClient(ctx, serviceMethod, arg)
-
-			if err != nil {
-				glog.Error("selectClient err:", err)
-				return err
-			}
 		}
 
 	default:
@@ -192,6 +219,7 @@ func (c *sgClient) removeClient(clientKey string, client RPCClient) {
 	if client != nil {
 		client.Close()
 	}
+	c.breakers.Delete(clientKey)
 }
 func (c *sgClient) wrapCall(callFunc CallFunc) CallFunc {
 	for _, wrapper := range c.option.Wrappers {
@@ -238,7 +266,7 @@ func (c *sgClient) heartbeat() {
 			err := v.(RPCClient).Call(context.Background(), "", "", nil)
 			c.mu.Lock()
 			if err != nil {
-				glog.Info("========================================heartbeat failed")
+				glog.Info("heartbeat failed")
 				//心跳失败进行计数
 				if fail, ok := c.clientsHeartbeatFail[k.(string)]; ok {
 					fail++
@@ -247,7 +275,7 @@ func (c *sgClient) heartbeat() {
 					c.clientsHeartbeatFail[k.(string)] = 1
 				}
 			} else {
-				glog.Info("========================================heartbeat succeed")
+				glog.Info("heartbeat succeed")
 				//心跳成功则进行恢复
 				c.clientsHeartbeatFail[k.(string)] = 0
 				c.serversMu.Lock()
@@ -265,7 +293,7 @@ func (c *sgClient) heartbeat() {
 				for i, p := range c.servers {
 					if p.ProviderKey == k {
 						//执行降级
-						glog.Info("--------------------------------------------------------------degred")
+						glog.Info("degred")
 						c.servers[i].Isdegred = true
 					}
 				}
