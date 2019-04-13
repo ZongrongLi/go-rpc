@@ -14,7 +14,7 @@
 
 ## v3
 
-- gopkg.in is not supported any more. Update import path to github.com/tiancai110a/msgpack.
+- gopkg.in is not supported any more. Update import path to github.com/vmihailenco/msgpack.
 - Msgpack maps are decoded into map[string]interface{} by default.
 - EncodeSliceLen is removed in favor of EncodeArrayLen. DecodeSliceLen is removed in favor of DecodeArrayLen.
 - Embedded structs are automatically inlined where possible.

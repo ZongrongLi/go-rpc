@@ -3,72 +3,16 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "nZxHZRxlUe66KtMbAYDamutoo6M=",
-			"path": "github.com/docker/libkv",
+			"checksumSHA1": "7ZGbcFcB5UXRmCmtVExlSF1nQSs=",
+			"path": "github.com/tiancai110a/libkv/store",
 			"revision": "458977154600b9f23984d9f4b82e79570b5ae12b",
 			"revisionTime": "2018-09-12T20:54:06Z"
 		},
 		{
-			"checksumSHA1": "f0riXTSoNiWTnXkQCUtXC9TwouM=",
-			"path": "github.com/docker/libkv/store",
+			"checksumSHA1": "Ps1t4+Ld4gRfD9rbK+Mmw8oDHnM=",
+			"path": "github.com/tiancai110a/libkv/store/zookeeper",
 			"revision": "458977154600b9f23984d9f4b82e79570b5ae12b",
 			"revisionTime": "2018-09-12T20:54:06Z"
-		},
-		{
-			"checksumSHA1": "9tFIWjJlpp7KEVKTTJFD/6HY7Vo=",
-			"path": "github.com/docker/libkv/store/zookeeper",
-			"revision": "458977154600b9f23984d9f4b82e79570b5ae12b",
-			"revisionTime": "2018-09-12T20:54:06Z"
-		},
-		{
-			"path": "github.com/docker/libkv/zookeeper",
-			"revision": ""
-		},
-		{
-			"checksumSHA1": "HmbftipkadrLlCfzzVQ+iFHbl6g=",
-			"path": "github.com/golang/glog",
-			"revision": "23def4e6c14b4da8ac2ed8007337bc5eb5007998",
-			"revisionTime": "2016-01-25T20:49:56Z"
-		},
-		{
-			"checksumSHA1": "Kh/EnzmngEgl6DxIndgpflFLm00=",
-			"path": "github.com/google/uuid",
-			"revision": "0cd6bf5da1e1c83f8b45653022c74f71af0538a4",
-			"revisionTime": "2019-02-27T21:05:49Z"
-		},
-		{
-			"checksumSHA1": "ze1R6Lrk0kW0cX24ZdZD6ZpIDCo=",
-			"path": "github.com/samuel/go-zookeeper/zk",
-			"revision": "c4fab1ac1bec58281ad0667dc3f0907a9476ac47",
-			"revisionTime": "2018-01-30T19:37:22Z"
-		},
-		{
-			"checksumSHA1": "KPyL6NFREncYwyw4u71PaW5rpCE=",
-			"path": "github.com/tiancai110a/libkv",
-			"revision": "458977154600b9f23984d9f4b82e79570b5ae12b",
-			"revisionTime": "2018-09-12T20:54:06Z"
-		},
-		{
-			"checksumSHA1": "F0xoSwu6bNb9uX0OUOL/sSkm//8=",
-			"path": "github.com/tiancai110a/msgpack",
-			"revision": "c2fc210f30a2aca9db880cc017a92c169c999253",
-			"revisionTime": "2019-03-27T14:08:13Z"
-		},
-		{
-			"checksumSHA1": "5R3T4fepBEMDB48+x2VS1WJV0Yo=",
-			"path": "github.com/tiancai110a/msgpack/codes",
-			"revision": "c2fc210f30a2aca9db880cc017a92c169c999253",
-			"revisionTime": "2019-03-27T14:08:13Z"
-		},
-		{
-			"checksumSHA1": "MVWKvLSnWudQLxdP/bPhgjRL2yE=",
-			"path": "github.com/tiancai110a/msgpack/codes",
-			"revision": "c2fc210f30a2aca9db880cc017a92c169c999253",
-			"revisionTime": "2019-03-27T14:08:13Z"
-		},
-		{
-			"path": "google.golang.org/appengine/datastore",
-			"revision": ""
 		}
 	],
 	"rootPath": "github.com/tiancai110a/go-rpc"

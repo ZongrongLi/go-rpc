@@ -15,12 +15,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/docker/libkv/store"
 	"github.com/tiancai110a/go-rpc/registry"
+	"github.com/tiancai110a/go-rpc/registry/libkv"
 
 	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/client"
 	"github.com/tiancai110a/go-rpc/protocol"
-	"github.com/tiancai110a/go-rpc/registry/zookeeper"
 	"github.com/tiancai110a/go-rpc/server"
 	"github.com/tiancai110a/go-rpc/service"
 	"github.com/tiancai110a/go-rpc/transport"
@@ -76,7 +77,10 @@ func makecall(ctx context.Context, c client.SGClient, a, b int) {
 func main() {
 	ctx := context.Background()
 	//单机伪集群
-	r1 := zookeeper.NewZookeeperRegistry("my-app", "/root/lizongrong/service",
+	// r1 := zookeeper.NewZookeeperRegistry("my-app", "/root/lizongrong/service",
+	// 	[]string{"127.0.0.1:1181", "127.0.0.1:2181", "127.0.0.1:3181"}, 1e10, nil)
+
+	r1 := libkv.NewKVRegistry(store.ZK, "my-app", "/root/lizongrong/service",
 		[]string{"127.0.0.1:1181", "127.0.0.1:2181", "127.0.0.1:3181"}, 1e10, nil)
 	servertOption := server.Option{
 		ProtocolType:   protocol.Default,
@@ -109,9 +113,8 @@ func main() {
 	op.CircuitBreakerThreshold = 2
 	op.CircuitBreakerWindow = time.Second * 5
 
-	r2 := zookeeper.NewZookeeperRegistry("my-app", "/root/lizongrong/service",
+	r2 := libkv.NewKVRegistry(store.ZK, "my-app", "/root/lizongrong/service",
 		[]string{"127.0.0.1:1181", "127.0.0.1:2181", "127.0.0.1:3181"}, 1e10, nil)
-
 	//r.Register(registry.RegisterOption{"my-app"}, registry.Provider{ProviderKey: "tcp@:8888", Network: "tcp", Addr: ":8888"})
 	op.Registry = r2
 

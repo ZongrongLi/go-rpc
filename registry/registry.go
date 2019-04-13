@@ -47,7 +47,7 @@ type Provider struct {
 	Network     string
 	Addr        string
 	Isdegred    bool
-	Meta        map[string]string
+	Meta        map[string]interface{}
 }
 
 type Peer2PeerDiscovery struct {
