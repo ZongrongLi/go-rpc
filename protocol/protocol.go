@@ -41,6 +41,12 @@ type Message struct {
 	Data []byte
 }
 
+func NewMessage() *Message {
+	msg := &Message{}
+	msg.Header = &Header{}
+	return msg
+}
+
 func (m Message) Clone() *Message {
 	header := *m.Header
 	c := new(Message)

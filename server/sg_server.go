@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log"
 	"reflect"
 	"sync"
 	"time"
@@ -146,6 +147,24 @@ func (s *SGServer) serveTransport(tr transport.Transport) {
 		s.wrapHandleRequest(s.doHandleRequest)(ctx, requestMsg, responseMsg, tr)
 	}
 }
+
+func (s *SGServer) writeResponse(ctx context.Context, tr transport.Transport, response *protocol.Message) {
+	deadline, ok := ctx.Deadline()
+	proto := protocol.ProtocolMap[s.option.ProtocolType]
+	if ok {
+		if time.Now().Before(deadline) {
+			_, err := tr.Write(proto.EncodeMessage(response, s.serializer))
+			if err != nil {
+				log.Println("write response error:" + err.Error())
+			}
+		} else {
+			log.Println("passed deadline, give up write response")
+		}
+	} else {
+		_, _ = tr.Write(proto.EncodeMessage(response, s.serializer))
+	}
+
+}
 func (s *SGServer) wrapHandleRequest(handleFunc HandleRequestFunc) HandleRequestFunc {
 	for _, w := range s.option.Wrappers {
 		handleFunc = w.WrapHandleRequest(s, handleFunc)
@@ -153,11 +172,22 @@ func (s *SGServer) wrapHandleRequest(handleFunc HandleRequestFunc) HandleRequest
 	return handleFunc
 }
 func (s *SGServer) doHandleRequest(ctx context.Context, requestMsg *protocol.Message, responseMsg *protocol.Message, tr transport.Transport) {
+	responseMsg = s.process(ctx, requestMsg, responseMsg)
+	s.writeResponse(ctx, tr, responseMsg)
+}
+
+func errorResponse(message *protocol.Message, err string) *protocol.Message {
+	message.Error = err
+	message.StatusCode = protocol.StatusError
+	message.Data = message.Data[:0]
+	return message
+}
+
+func (s *SGServer) process(ctx context.Context, requestMsg *protocol.Message, responseMsg *protocol.Message) *protocol.Message {
+
 	if requestMsg.MessageType == protocol.MessageTypeHeartbeat {
-		glog.Info("========hearbeat received")
-		responseMsg.Data = responseMsg.Data[:0]
-		tr.Write(s.protocol.EncodeMessage(responseMsg, s.serializer))
-		return
+		responseMsg.MessageType = protocol.MessageTypeHeartbeat
+		return responseMsg
 	}
 	sname := requestMsg.ServiceName
 	mname := requestMsg.MethodName
@@ -165,14 +195,14 @@ func (s *SGServer) doHandleRequest(ctx context.Context, requestMsg *protocol.Mes
 	srvInterface, ok := s.serviceMap.Load(sname)
 	if !ok {
 		glog.Error("can not find service")
-		s.writeErrorResponse(responseMsg, tr, "can not find service")
-		return
+		return errorResponse(responseMsg, "can not find service")
+
 	}
 	srv, ok := srvInterface.(*service)
 	if !ok {
 		glog.Error("not *service type")
-		s.writeErrorResponse(responseMsg, tr, "not *service type")
-		return
+		return errorResponse(responseMsg, "not *service type")
+
 	}
 
 	glog.Infof("%s.%s is called", sname, mname)
@@ -180,40 +210,36 @@ func (s *SGServer) doHandleRequest(ctx context.Context, requestMsg *protocol.Mes
 	argv, err := reflecttionArgs(srv, mname)
 	if err != nil {
 		glog.Error("reflecttionArgs failed:", err)
-		s.writeErrorResponse(responseMsg, tr, err.Error())
-		return
+		return errorResponse(responseMsg, err.Error())
+
 	}
 	err = s.serializer.Unmarshal(requestMsg.Data, &argv)
 	if err != nil {
 		glog.Error("Unmarshal args failed: ", err)
-		s.writeErrorResponse(responseMsg, tr, err.Error())
-		return
+		return errorResponse(responseMsg, err.Error())
+
 	}
 
 	//调用方法
 	replyv, err := reflectionCall(ctx, srv, mname, argv)
 	if err != nil {
 		glog.Error("reflectionCall failed: ", err)
-		s.writeErrorResponse(responseMsg, tr, err.Error())
-		return
+		return errorResponse(responseMsg, err.Error())
+
 	}
 
 	responseData, err := s.serializer.Marshal(replyv)
 	if err != nil {
 		glog.Error("serializer failed: ", err)
-		s.writeErrorResponse(responseMsg, tr, err.Error())
-		return
+		return errorResponse(responseMsg, err.Error())
+
 	}
 
 	responseMsg.StatusCode = protocol.StatusOK
 	responseMsg.Data = responseData
 
-	_, err = tr.Write(s.protocol.EncodeMessage(responseMsg, s.serializer))
-	if err != nil {
-		glog.Error("trasport failed: ", err)
-		s.writeErrorResponse(responseMsg, tr, err.Error())
-		return
-	}
+	return responseMsg
+
 }
 
 func (s *SGServer) wrapServe(serveFunc ServeFunc) ServeFunc {

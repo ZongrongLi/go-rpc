@@ -13,6 +13,7 @@ import (
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/zookeeper"
+	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/registry"
 	"github.com/tiancai110a/go-rpc/share"
 )
@@ -127,7 +128,7 @@ func (r *KVRegistry) watch() {
 			lastUpdate := strconv.Itoa(int(time.Now().UnixNano()))
 			err := r.kv.Put(appkeyPath, []byte(lastUpdate), &store.WriteOptions{IsDir: true})
 			if err != nil {
-				log.Printf("create path before watch error,  key %v", appkeyPath)
+				glog.Info("create path before watch error,  key %v", appkeyPath)
 			}
 		}
 		ch, err := r.kv.Watch(appkeyPath, nil)
@@ -141,7 +142,7 @@ func (r *KVRegistry) watch() {
 			select {
 			case pairs := <-ch:
 				if pairs == nil {
-					log.Printf("read finish")
+					glog.Info("read finish")
 					//watch数据结束，跳出这次循环
 					watchFinish = true
 				}
@@ -156,7 +157,7 @@ func (r *KVRegistry) watch() {
 				list := r.providers
 				r.providersMu.RUnlock()
 				for _, p := range latestPairs {
-					log.Printf("got provider %v", kv2Provider(p))
+					glog.Info("got provider %v", kv2Provider(p))
 					list = append(list, kv2Provider(p))
 				}
 
@@ -184,14 +185,14 @@ func (r *KVRegistry) Register(option registry.RegisterOption, provider ...regist
 		data, _ := json.Marshal(p.Meta)
 		err := r.kv.Put(key, data, nil)
 		if err != nil {
-			log.Printf("libkv register error: %v, provider: %v", err, p)
+			glog.Info("libkv register error: %v, provider: %v", err, p)
 		}
 
 		//注册时更新父级目录触发watch
 		lastUpdate := strconv.Itoa(int(time.Now().UnixNano()))
 		err = r.kv.Put(serviceBasePath, []byte(lastUpdate), nil)
 		if err != nil {
-			log.Printf("libkv register modify lastupdate error: %v, provider: %v", err, p)
+			glog.Info("libkv register modify lastupdate error: %v, provider: %v", err, p)
 		}
 	}
 }
@@ -206,14 +207,14 @@ func (r *KVRegistry) Unregister(option registry.RegisterOption, provider ...regi
 		key := serviceBasePath + p.Network + "@" + p.Addr
 		err := r.kv.Delete(key)
 		if err != nil {
-			log.Printf("libkv unregister error: %v, provider: %v", err, p)
+			glog.Info("libkv unregister error: %v, provider: %v", err, p)
 		}
 
 		//注销时更新父级目录触发watch
 		lastUpdate := strconv.Itoa(int(time.Now().UnixNano()))
 		err = r.kv.Put(serviceBasePath, []byte(lastUpdate), nil)
 		if err != nil {
-			log.Printf("libkv register modify lastupdate error: %v, provider: %v", err, p)
+			glog.Info("libkv register modify lastupdate error: %v, provider: %v", err, p)
 		}
 	}
 }
@@ -230,7 +231,7 @@ func (r *KVRegistry) doGetServiceList() {
 
 	var list []registry.Provider
 	if err != nil {
-		log.Printf("error get service list %v", err)
+		glog.Info("error get service list %v", err)
 		return
 	}
 
@@ -238,7 +239,7 @@ func (r *KVRegistry) doGetServiceList() {
 		provider := kv2Provider(pair)
 		list = append(list, provider)
 	}
-	log.Printf("get service list %v", list)
+	glog.Info("get service list %v", list)
 	r.providersMu.Lock()
 	r.providers = list
 	r.providersMu.Unlock()

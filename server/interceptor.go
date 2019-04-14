@@ -48,6 +48,7 @@ func (w *DefaultServerWrapper) WrapServe(s *SGServer, serveFunc ServeFunc) Serve
 
 		s.option.Registry.Register(s.option.RegisterOption, provider)
 		glog.Error("server started")
+		s.startGateway()
 		return serveFunc(network, addr, meta)
 	}
 }

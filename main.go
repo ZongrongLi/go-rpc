@@ -12,7 +12,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/docker/libkv/store"
@@ -20,6 +25,7 @@ import (
 	"github.com/tiancai110a/go-rpc/ratelimit"
 	"github.com/tiancai110a/go-rpc/registry"
 	"github.com/tiancai110a/go-rpc/registry/libkv"
+	"github.com/tiancai110a/msgpack"
 
 	"github.com/golang/glog"
 	"github.com/opentracing/opentracing-go/mocktracer"
@@ -77,6 +83,68 @@ func makecall(ctx context.Context, c client.SGClient, a, b int) {
 		glog.Error("Send failed ", err)
 	}
 }
+
+func MakeRequest(req *http.Request,
+	msgtype protocol.MessageType,
+	comrpesstype protocol.CompressType,
+	serliazetype protocol.SerializeType,
+	statuscode protocol.StatusCode,
+	servicename string,
+	methodname string,
+	err string,
+	meta *map[string]interface{}) *http.Request {
+
+	req.Header.Set(server.HEADER_SEQ, "1")
+	req.Header.Set(server.HEADER_MESSAGE_TYPE, strconv.FormatUint((uint64)(msgtype), 10))
+	req.Header.Set(server.HEADER_COMPRESS_TYPE, strconv.FormatUint((uint64)(comrpesstype), 10))
+	req.Header.Set(server.HEADER_SERIALIZE_TYPE, strconv.FormatUint((uint64)(serliazetype), 10))
+	req.Header.Set(server.HEADER_STATUS_CODE, strconv.FormatUint((uint64)(statuscode), 10))
+	req.Header.Set(server.HEADER_SERVICE_NAME, servicename)
+	req.Header.Set(server.HEADER_METHOD_NAME, methodname)
+	req.Header.Set(server.HEADER_ERROR, err)
+
+	metaJson, _ := json.Marshal(meta)
+	req.Header.Set(server.HEADER_META_DATA, string(metaJson))
+	return req
+}
+
+func MakeHttpCall(ctx context.Context, servicename, methoname string, c client.SGClient, a, b int) {
+	arg := service.ArithRequest{a, b}
+
+	data, _ := msgpack.Marshal(arg)
+	body := bytes.NewBuffer(data)
+	req, err := http.NewRequest("POST", "http://localhost:5080/invoke", body)
+	if err != nil {
+		glog.Info(err)
+		return
+	}
+	meta := map[string]interface{}{"idc": "lf"}
+
+	req = MakeRequest(req,
+		protocol.MessageTypeRequest,
+		protocol.CompressTypeNone,
+		protocol.SerializeTypeMsgpack,
+		protocol.StatusOK,
+		servicename,
+		methoname,
+		"",
+		&meta)
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		glog.Info(err)
+		return
+	}
+	if response.StatusCode != 200 {
+		glog.Info(response)
+	} else if response.Header.Get(server.HEADER_ERROR) != "" {
+		glog.Info(response.Header.Get(server.HEADER_ERROR))
+	} else {
+		data, err = ioutil.ReadAll(response.Body)
+		result := service.ArithResponse{}
+		msgpack.Unmarshal(data, &result)
+		glog.Infof("===========================++++++++++++++++++++++++++++++++ %d %s %d = %d", a, methoname, b, result.Reply)
+	}
+}
 func main() {
 	ctx := context.Background()
 	opentracing.SetGlobalTracer(mocktracer.New())
@@ -132,16 +200,32 @@ func main() {
 
 	c := client.NewSGClient(*op)
 
-	for i := 0; i < 2; i++ {
-		makecall(ctx, c, i, i+1)
-		time.Sleep(time.Second)
-	}
+	// for i := 0; i < 2; i++ {
+	// 	makecall(ctx, c, i, i+1)
+	// 	time.Sleep(time.Second)
+	// }
 
-	//gs.Close()
-	time.Sleep(time.Second * 3)
-	for i := 0; i < 2000; i++ {
-		makecall(ctx, c, i, i+1)
+	// //模拟服务器宕机
+	// //gs.Close()
+	// time.Sleep(time.Second * 3)
+	// for i := 0; i < 2000; i++ {
+	// 	makecall(ctx, c, i, i+1)
+	// 	time.Sleep(time.Second)
+	// }
+
+	for i := 0; i < 20; i++ {
+		MakeHttpCall(ctx, "ArithService", "Add", c, i, i+1)
 		time.Sleep(time.Second)
+
+		MakeHttpCall(ctx, "ArithService", "Minus", c, i, i+1)
+		time.Sleep(time.Second)
+
+		MakeHttpCall(ctx, "ArithService", "Mul", c, i, i+1)
+		time.Sleep(time.Second)
+
+		MakeHttpCall(ctx, "ArithService", "Divide", c, i, i+1)
+		time.Sleep(time.Second)
+
 	}
 	time.Sleep(time.Second * 265)
 
