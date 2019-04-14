@@ -16,11 +16,13 @@ import (
 	"time"
 
 	"github.com/docker/libkv/store"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/tiancai110a/go-rpc/ratelimit"
 	"github.com/tiancai110a/go-rpc/registry"
 	"github.com/tiancai110a/go-rpc/registry/libkv"
 
 	"github.com/golang/glog"
+	"github.com/opentracing/opentracing-go/mocktracer"
 	"github.com/tiancai110a/go-rpc/client"
 	"github.com/tiancai110a/go-rpc/protocol"
 	"github.com/tiancai110a/go-rpc/server"
@@ -77,6 +79,8 @@ func makecall(ctx context.Context, c client.SGClient, a, b int) {
 }
 func main() {
 	ctx := context.Background()
+	opentracing.SetGlobalTracer(mocktracer.New())
+
 	//单机伪集群
 	// r1 := zookeeper.NewZookeeperRegistry("my-app", "/root/lizongrong/service",
 	// 	[]string{"127.0.0.1:1181", "127.0.0.1:2181", "127.0.0.1:3181"}, 1e10, nil)

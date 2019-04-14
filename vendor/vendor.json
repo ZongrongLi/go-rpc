@@ -3,6 +3,30 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "6EIQaeaWECn3zlechdGkqmIKld4=",
+			"path": "github.com/opentracing/opentracing-go",
+			"revision": "659c90643e714681897ec2521c60567dd21da733",
+			"revisionTime": "2019-03-23T20:25:03Z"
+		},
+		{
+			"checksumSHA1": "hZnCURJIhg56jbKk0UFRfZkcQ+c=",
+			"path": "github.com/opentracing/opentracing-go/ext",
+			"revision": "659c90643e714681897ec2521c60567dd21da733",
+			"revisionTime": "2019-03-23T20:25:03Z"
+		},
+		{
+			"checksumSHA1": "tnkdNJbJxNKuPZMWapP1xhKIIGw=",
+			"path": "github.com/opentracing/opentracing-go/log",
+			"revision": "659c90643e714681897ec2521c60567dd21da733",
+			"revisionTime": "2019-03-23T20:25:03Z"
+		},
+		{
+			"checksumSHA1": "rBGzaTk1KopWBWXC4+3VqixBOH8=",
+			"path": "github.com/opentracing/opentracing-go/mocktracer",
+			"revision": "659c90643e714681897ec2521c60567dd21da733",
+			"revisionTime": "2019-03-23T20:25:03Z"
+		},
+		{
 			"checksumSHA1": "7ZGbcFcB5UXRmCmtVExlSF1nQSs=",
 			"path": "github.com/tiancai110a/libkv/store",
 			"revision": "458977154600b9f23984d9f4b82e79570b5ae12b",

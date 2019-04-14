@@ -66,6 +66,7 @@ func NewSGServer(op *Option) (RPCServer, error) {
 
 	s.option.Wrappers = append(s.option.Wrappers, &DefaultServerWrapper{})
 	s.option.Wrappers = append(s.option.Wrappers, authWrapper)
+	s.option.Wrappers = append(s.option.Wrappers, &OpenTracingInterceptor{})
 
 	//rateLimitor := NewRequestRateLimitInterceptor(rlimit)
 	// s.option.Wrappers = append(s.option.Wrappers, rateLimitor)

@@ -76,7 +76,7 @@ func (sai *ServerAuthInterceptor) WrapHandleRequest(s *SGServer, requestFunc Han
 		if ok {
 			//鉴权通过则执行业务逻辑
 			if sai.authFunc(auth) {
-				glog.Info("==============================auth passed")
+				glog.Info("auth passed")
 				requestFunc(ctx, response, response, tr)
 				return
 			}
@@ -86,14 +86,14 @@ func (sai *ServerAuthInterceptor) WrapHandleRequest(s *SGServer, requestFunc Han
 		if ok {
 			//鉴权通过则执行业务逻辑
 			if sai.authFunc(auth) {
-				glog.Info("==============================auth passed")
+				glog.Info("auth passed")
 				requestFunc(ctx, response, response, tr)
 				return
 			}
 		}
 
 		//鉴权失败则返回异常
-		glog.Info("==============================auth reject", auth)
+		glog.Info("auth reject", auth)
 		s.writeErrorResponse(response, tr, "auth failed")
 	}
 }
