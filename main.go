@@ -49,7 +49,7 @@ func StartServer(op *server.Option) {
 
 		}
 
-		go s.Serve("tcp", "127.0.0.1:8888")
+		go s.Serve("tcp", "127.0.0.1:8888", nil)
 	}()
 }
 
@@ -95,6 +95,7 @@ func main() {
 		ShutDownWait:   time.Second * 12,
 		Registry:       r1,
 		RegisterOption: registry.RegisterOption{"my-app"},
+		Tags:           map[string]string{"idc": "lf"}, //只允许机房为lf的请求，客户端取到信息会自己进行转移
 	}
 
 	StartServer(&servertOption)
@@ -117,6 +118,10 @@ func main() {
 	//一秒钟失败20次 就会进入贤者模式.. 因为lastupdate时间在不断更新，熔断后继续调用有可能恢复
 	op.CircuitBreakerThreshold = 20
 	op.CircuitBreakerWindow = time.Second
+
+	//基于标签的路由策略
+	op.Tagged = true
+	op.Tags = map[string]string{"idc": "lf"}
 
 	op.Wrappers = append(op.Wrappers, &client.RateLimitInterceptor{Limit: ratelimit.NewRateLimiter(10, 2)}) //一秒10个，最多有两个排队
 

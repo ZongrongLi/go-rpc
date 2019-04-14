@@ -154,7 +154,7 @@ func (s *SGServer) wrapHandleRequest(handleFunc HandleRequestFunc) HandleRequest
 }
 func (s *SGServer) doHandleRequest(ctx context.Context, requestMsg *protocol.Message, responseMsg *protocol.Message, tr transport.Transport) {
 	if requestMsg.MessageType == protocol.MessageTypeHeartbeat {
-		glog.Info("=================================hearbeat received")
+		glog.Info("========hearbeat received")
 		responseMsg.Data = responseMsg.Data[:0]
 		tr.Write(s.protocol.EncodeMessage(responseMsg, s.serializer))
 		return
@@ -222,13 +222,13 @@ func (s *SGServer) wrapServe(serveFunc ServeFunc) ServeFunc {
 	}
 	return serveFunc
 }
-func (s *SGServer) Serve(network string, addr string) error {
+func (s *SGServer) Serve(network string, addr string, meta map[string]interface{}) error {
 	s.network = network
 	s.addr = addr
-	return s.wrapServe(s.serve)(network, addr)
+	return s.wrapServe(s.serve)(network, addr, nil)
 }
 
-func (s *SGServer) serve(network string, addr string) error {
+func (s *SGServer) serve(network string, addr string, meta map[string]interface{}) error {
 	if s.shutdown {
 		return nil
 	}

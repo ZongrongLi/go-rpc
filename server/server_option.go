@@ -29,6 +29,7 @@ type Option struct {
 	ShutDownWait   time.Duration
 	Wrappers       []Wrapper
 	ShutDownHooks  []ShutDownHook
+	Tags           map[string]string
 }
 
 var DefaultOption = Option{

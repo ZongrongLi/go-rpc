@@ -18,7 +18,7 @@ import (
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
-type ServeFunc func(network string, addr string) error
+type ServeFunc func(network string, addr string, meta map[string]interface{}) error
 type HandleRequestFunc func(ctx context.Context, request *protocol.Message, response *protocol.Message, tr transport.Transport)
 type AuthFunc func(key string) bool
 

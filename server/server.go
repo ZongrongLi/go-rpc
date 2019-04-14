@@ -25,7 +25,7 @@ import (
 )
 
 type RPCServer interface {
-	Serve(network string, addr string) error
+	Serve(network string, addr string, meta map[string]interface{}) error
 	Register(rcvr interface{}) error
 	Close() error
 }
@@ -42,7 +42,6 @@ type service struct {
 	rcvr    reflect.Value
 	methods map[string]*methodType
 }
-
 
 type simpleServer struct {
 	tr         transport.ServerTransport
@@ -187,7 +186,7 @@ func (s *simpleServer) doHandleRequest(ctx context.Context, requestMsg *protocol
 	}
 }
 
-func (s *simpleServer) Serve(network string, addr string) error {
+func (s *simpleServer) Serve(network string, addr string, meta map[string]interface{}) error {
 	tr := transport.ServerSocket{}
 
 	defer tr.Close()

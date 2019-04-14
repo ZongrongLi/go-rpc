@@ -47,6 +47,7 @@ func NewSGClient(option SGOption) SGClient {
 	c.option = option
 
 	providers := c.option.Registry.GetServiceList()
+	glog.Info("=++++++++++++++++++++++++++++++++++++++++++++++++++++初始拉全量", providers)
 	c.watcher = c.option.Registry.Watch()
 	glog.Info("providers", providers)
 
@@ -63,7 +64,13 @@ func NewSGClient(option SGOption) SGClient {
 
 	if c.option.Heartbeat {
 		go c.heartbeat()
-		c.option.SelectOption.Filters = append(c.option.SelectOption.Filters, selector.DegradeProviderFilter)
+		c.option.SelectOption.Filters = append(c.option.SelectOption.Filters,
+			selector.DegradeProviderFilter)
+	}
+
+	if c.option.Tagged && c.option.Tags != nil {
+		c.option.SelectOption.Filters = append(c.option.SelectOption.Filters,
+			selector.TaggedProviderFilter(c.option.Tags))
 	}
 	c.clientsHeartbeatFail = make(map[string]int, 0)
 

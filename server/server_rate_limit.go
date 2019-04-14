@@ -32,7 +32,7 @@ func (rl *RequestRateLimitInterceptor) WrapHandleRequest(s *SGServer, requestFun
 }
 
 func (rl *RequestRateLimitInterceptor) WrapServe(s *SGServer, serveFunc ServeFunc) ServeFunc {
-	return func(network string, addr string) error {
-		return serveFunc(network, addr)
+	return func(network string, addr string, meta map[string]interface{}) error {
+		return serveFunc(network, addr, meta)
 	}
 }

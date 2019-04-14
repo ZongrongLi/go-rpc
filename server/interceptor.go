@@ -17,7 +17,7 @@ type DefaultServerWrapper struct {
 }
 
 func (w *DefaultServerWrapper) WrapServe(s *SGServer, serveFunc ServeFunc) ServeFunc {
-	return func(network string, addr string) error {
+	return func(network string, addr string, meta map[string]interface{}) error {
 		//注册shutdownHook
 		go func(s *SGServer) {
 			ch := make(chan os.Signal, 1)
@@ -31,16 +31,24 @@ func (w *DefaultServerWrapper) WrapServe(s *SGServer, serveFunc ServeFunc) Serve
 				os.Exit(0)
 			}
 		}(s)
+		if meta == nil {
+			meta = make(map[string]interface{})
+		}
+		if len(s.option.Tags) > 0 {
+			meta["tags"] = s.option.Tags
+		}
 
 		//这里注册服务
 		provider := registry.Provider{
 			ProviderKey: network + "@" + addr,
 			Network:     network,
 			Addr:        addr,
+			Meta:        meta,
 		}
+
 		s.option.Registry.Register(s.option.RegisterOption, provider)
 		glog.Error("server started")
-		return serveFunc(network, addr)
+		return serveFunc(network, addr, meta)
 	}
 }
 

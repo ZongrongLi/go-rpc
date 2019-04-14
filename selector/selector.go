@@ -27,6 +27,43 @@ type SelectOption struct {
 	Filters []Filter
 }
 
+//客户端实现，基于tags进行过滤
+//serve 注册的时候将tags放到meta中通过provider一起放到zk中，客户端拉数据的时候一起拿到meta信息，
+//selector调用的时候检测检测自身的tags和某个provider的tag是否匹配
+func TaggedProviderFilter(tags map[string]string) Filter {
+	return func(provider registry.Provider, ctx context.Context, ServiceMethod string, arg interface{}) bool {
+
+		if tags == nil {
+			glog.Info("tags passed")
+			return true
+		}
+		if provider.Meta == nil {
+			glog.Info("tags not passed")
+			return false
+		}
+		providerTags, ok := provider.Meta["tags"].(map[string]interface{})
+		if !ok || len(providerTags) <= 0 {
+			glog.Info("tags not passed")
+			return false
+		}
+		for k, v := range tags {
+			if tag, ok := providerTags[k].(string); ok {
+				if tag != v {
+					glog.Info("tags not passed")
+
+					return false
+				}
+			} else {
+				glog.Info("tags not passed")
+				return false
+			}
+		}
+
+		glog.Info("tags passed")
+		return true
+	}
+}
+
 func DegradeProviderFilter(provider registry.Provider, ctx context.Context, ServiceMethod string, arg interface{}) bool {
 	return !provider.Isdegred
 }
@@ -37,7 +74,7 @@ type Selector interface {
 
 var RandomSelectorInstance = RandomSelector{}
 
-//可以接入轮询策略和一致性hash等等
+//TODO 可以接入轮询策略和一致性hash等等
 type RandomSelector struct {
 }
 
