@@ -7,7 +7,7 @@
  * Last Modified: Wednesday, 10th April 2019 3:56:24 pm
  * Modified By: lizongrong (389006500@qq.com>)
  * -----
- * Copyright 2019 - 2019
+ * null 2019 - 2019
  */
 package memory
 
@@ -35,7 +35,7 @@ type Registry struct {
 func (r *Registry) Register(option registry.RegisterOption, providers ...registry.Provider) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	glog.Info("==================================================================Register:", option.AppKey)
+	glog.Info("============================Register:", option.AppKey)
 	go r.sendWatcherEvent(registry.Create, option.AppKey, providers...)
 
 	var providers2Register []registry.Provider
