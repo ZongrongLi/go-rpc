@@ -22,7 +22,6 @@ import (
 
 	"github.com/docker/libkv/store"
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/tiancai110a/go-rpc/ratelimit"
 	"github.com/tiancai110a/go-rpc/registry"
 	"github.com/tiancai110a/go-rpc/registry/libkv"
 	"github.com/tiancai110a/msgpack"
@@ -35,6 +34,15 @@ import (
 	"github.com/tiancai110a/go-rpc/service"
 	"github.com/tiancai110a/go-rpc/transport"
 )
+
+func TestAdd(ctx context.Context) {
+	glog.Info("===========================================================================================resultful func")
+	glog.Info("==================================test1:", ctx.Value("test1"))
+	glog.Info("==================================test:", ctx.Value("test"))
+	glog.Info("==================================name:", ctx.Value("name"))
+	glog.Info("==================================pass:", ctx.Value("pass"))
+
+}
 
 //用来停止server，测试心跳功能
 var gs server.RPCServer
@@ -55,6 +63,12 @@ func StartServer(op *server.Option) {
 
 		}
 
+		sk := s.Group(service.POST, "/invoke")
+		if sk == nil {
+			glog.Error("server dose not implement http server")
+			return
+		}
+		sk.Route("/Add", TestAdd)
 		go s.Serve("tcp", "127.0.0.1:8888", nil)
 	}()
 }
@@ -146,7 +160,7 @@ func MakeHttpCall(ctx context.Context, servicename, methoname string, c client.S
 	}
 }
 func main() {
-	ctx := context.Background()
+
 	opentracing.SetGlobalTracer(mocktracer.New())
 
 	//单机伪集群
@@ -166,39 +180,42 @@ func main() {
 		Tags:           map[string]string{"idc": "lf"}, //只允许机房为lf的请求，客户端取到信息会自己进行转移
 	}
 
+	//servertOption.Wrappers = append(slice, elems)
+
 	StartServer(&servertOption)
 	time.Sleep(time.Second)
 
-	op := &client.DefaultSGOption
-	op.AppKey = "my-app"
-	op.RequestTimeout = time.Millisecond * 100
-	op.DialTimeout = time.Millisecond * 100
-	op.HeartbeatInterval = time.Second
-	op.HeartbeatDegradeThreshold = 5
-	op.Heartbeat = true
-	op.SerializeType = protocol.SerializeTypeMsgpack
-	op.CompressType = protocol.CompressTypeNone
-	op.TransportType = transport.TCPTransport
-	op.ProtocolType = protocol.Default
-	op.FailMode = client.FailRetry
-	op.Retries = 3
-	op.Auth = "hello01"
-	//一秒钟失败20次 就会进入贤者模式.. 因为lastupdate时间在不断更新，熔断后继续调用有可能恢复
-	op.CircuitBreakerThreshold = 20
-	op.CircuitBreakerWindow = time.Second
+	//ctx := context.Background()
+	// op := &client.DefaultSGOption
+	// op.AppKey = "my-app"
+	// op.RequestTimeout = time.Millisecond * 100
+	// op.DialTimeout = time.Millisecond * 100
+	// op.HeartbeatInterval = time.Second
+	// op.HeartbeatDegradeThreshold = 5
+	// op.Heartbeat = true
+	// op.SerializeType = protocol.SerializeTypeMsgpack
+	// op.CompressType = protocol.CompressTypeNone
+	// op.TransportType = transport.TCPTransport
+	// op.ProtocolType = protocol.Default
+	// op.FailMode = client.FailRetry
+	// op.Retries = 3
+	// op.Auth = "hello01"
+	// //一秒钟失败20次 就会进入贤者模式.. 因为lastupdate时间在不断更新，熔断后继续调用有可能恢复
+	// op.CircuitBreakerThreshold = 20
+	// op.CircuitBreakerWindow = time.Second
 
-	//基于标签的路由策略
-	op.Tagged = true
-	op.Tags = map[string]string{"idc": "lf"}
+	// //基于标签的路由策略
+	// op.Tagged = true
+	// op.Tags = map[string]string{"idc": "lf"}
 
-	op.Wrappers = append(op.Wrappers, &client.RateLimitInterceptor{Limit: ratelimit.NewRateLimiter(10, 2)}) //一秒10个，最多有两个排队
+	// op.Wrappers = append(op.Wrappers, &client.RateLimitInterceptor{Limit: ratelimit.NewRateLimiter(10, 2)}) //一秒10个，最多有两个排队
 
-	r2 := libkv.NewKVRegistry(store.ZK, "my-app", "/root/lizongrong/service",
-		[]string{"127.0.0.1:1181", "127.0.0.1:2181", "127.0.0.1:3181"}, 1e10, nil)
-	//r.Register(registry.RegisterOption{"my-app"}, registry.Provider{ProviderKey: "tcp@:8888", Network: "tcp", Addr: ":8888"})
-	op.Registry = r2
+	// r2 := libkv.NewKVRegistry(store.ZK, "my-app", "/root/lizongrong/service",
+	// 	[]string{"127.0.0.1:1181", "127.0.0.1:2181", "127.0.0.1:3181"}, 1e10, nil)
+	// //r.Register(registry.RegisterOption{"my-app"}, registry.Provider{ProviderKey: "tcp@:8888", Network: "tcp", Addr: ":8888"})
+	// op.Registry = r2
 
-	c := client.NewSGClient(*op)
+	// c := client.NewSGClient(*op)
 
 	// for i := 0; i < 2; i++ {
 	// 	makecall(ctx, c, i, i+1)
@@ -213,20 +230,20 @@ func main() {
 	// 	time.Sleep(time.Second)
 	// }
 
-	for i := 0; i < 20; i++ {
-		MakeHttpCall(ctx, "ArithService", "Add", c, i, i+1)
-		time.Sleep(time.Second)
+	// for i := 0; i < 20; i++ {
+	// 	MakeHttpCall(ctx, "ArithService", "Add", c, i, i+1)
+	// 	time.Sleep(time.Second)
 
-		MakeHttpCall(ctx, "ArithService", "Minus", c, i, i+1)
-		time.Sleep(time.Second)
+	// 	MakeHttpCall(ctx, "ArithService", "Minus", c, i, i+1)
+	// 	time.Sleep(time.Second)
 
-		MakeHttpCall(ctx, "ArithService", "Mul", c, i, i+1)
-		time.Sleep(time.Second)
+	// 	MakeHttpCall(ctx, "ArithService", "Mul", c, i, i+1)
+	// 	time.Sleep(time.Second)
 
-		MakeHttpCall(ctx, "ArithService", "Divide", c, i, i+1)
-		time.Sleep(time.Second)
+	// 	MakeHttpCall(ctx, "ArithService", "Divide", c, i, i+1)
+	// 	time.Sleep(time.Second)
 
-	}
+	// }
 	time.Sleep(time.Second * 265)
 
 }

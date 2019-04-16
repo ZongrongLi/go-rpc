@@ -21,6 +21,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/protocol"
+	Service "github.com/tiancai110a/go-rpc/service"
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
@@ -28,6 +29,7 @@ type RPCServer interface {
 	Serve(network string, addr string, meta map[string]interface{}) error
 	Register(rcvr interface{}) error
 	Close() error
+	Group(t Service.MethodType, path string) *Service.MapRouterFunc
 }
 
 type methodType struct {
@@ -69,7 +71,9 @@ func NewSimpleServer(op *Option) (RPCServer, error) {
 	}
 	return &s, nil
 }
-
+func (s *simpleServer) Group(t Service.MethodType, path string) *Service.MapRouterFunc {
+	return nil
+}
 func (s *simpleServer) Register(rcvr interface{}) error {
 
 	typ := reflect.TypeOf(rcvr)

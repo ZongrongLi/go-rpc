@@ -10,6 +10,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/protocol"
 	"github.com/tiancai110a/go-rpc/registry"
+	Service "github.com/tiancai110a/go-rpc/service"
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
@@ -48,6 +49,7 @@ func (w *DefaultServerWrapper) WrapServe(s *SGServer, serveFunc ServeFunc) Serve
 
 		s.option.Registry.Register(s.option.RegisterOption, provider)
 		glog.Error("server started")
+		s.Register(Service.RouterService{})
 		s.startGateway()
 		return serveFunc(network, addr, meta)
 	}

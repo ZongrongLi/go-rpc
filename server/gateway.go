@@ -14,14 +14,15 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
-	"log"
+	"errors"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/protocol"
+	Service "github.com/tiancai110a/go-rpc/service"
 	"github.com/tiancai110a/go-rpc/share/metadata"
 )
 
@@ -46,52 +47,118 @@ func (s *SGServer) startGateway() {
 		ln, err = net.Listen("tcp", ":"+strconv.Itoa(port))
 	}
 	if err != nil {
-		log.Printf("error listening gateway: %s", err.Error())
+		glog.Error("error listening gateway: %s", err.Error())
 	}
 
-	log.Printf("gateway listenning on " + strconv.Itoa(port))
+	glog.Error("gateway listenning on " + strconv.Itoa(port))
 	go func() {
 		err := http.Serve(ln, s)
 		if err != nil {
-			log.Printf("error serving http %s", err.Error())
+			glog.Error("error serving http %s", err.Error())
+		} else {
+			glog.Info("Http server at port: ", port)
 		}
 	}()
 }
+func (s *SGServer) Group(t Service.MethodType, path string) *Service.MapRouterFunc {
+	path = strings.Trim(path, "/")
 
-func (s *SGServer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/invoke" {
-		rw.WriteHeader(404)
-		return
+	fm := &Service.PostGroup2Func
+	if t == Service.GET {
+		fm = &Service.GetGroup2Func
 	}
-
-	if r.Method != "POST" {
-		rw.WriteHeader(405)
-		return
+	if _, ok := (*fm)[path]; !ok {
+		m := Service.MapRouterFunc{}
+		(*fm)[path] = &m
 	}
-
-	request := protocol.NewMessage()
-	request, err := parseHeader(request, r)
-	if err != nil {
-		rw.WriteHeader(400)
-	}
-	request, err = parseBody(request, r)
-	if err != nil {
-		rw.WriteHeader(400)
-	}
-	ctx := metadata.WithMeta(context.Background(), request.MetaData)
-	response := request.Clone()
-	response.MessageType = protocol.MessageTypeResponse
-	response = s.process(ctx, request, response)
-	s.writeHttpResponse(response, rw, r)
+	return (*fm)[path]
 }
 
-func parseBody(message *protocol.Message, request *http.Request) (*protocol.Message, error) {
-	data, err := ioutil.ReadAll(request.Body)
-	if err != nil {
-		return nil, err
+func parsePath(path string) (gname, mname string, err error) {
+	//解析路径
+	mname = ""
+	gname = ""
+	pathstr := strings.SplitAfterN(path, "/", 3)
+
+	if len(pathstr) == 1 || len(pathstr) > 3 {
+		err = errors.New("wrong param")
+		return
+
 	}
-	message.Data = data
-	return message, nil
+
+	if len(pathstr) == 2 {
+		mname = pathstr[1]
+	} else {
+		gname = pathstr[1]
+		mname = pathstr[2]
+	}
+
+	mname = strings.Trim(mname, "/")
+	gname = strings.Trim(gname, "/")
+	return
+}
+
+func (s *SGServer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+
+	request := protocol.NewMessage()
+	//var err error
+	//request, err = parseHeader(request, r)
+	// if err != nil {
+	// 	rw.WriteHeader(400)
+	// }
+
+	ctx := context.Background()
+	if request.MetaData != nil {
+		ctx = metadata.WithMeta(context.Background(), request.MetaData)
+	}
+
+	gname, mname, err := parsePath(r.URL.Path)
+
+	if err != nil {
+		rw.WriteHeader(500)
+		return
+	}
+
+	ctx = context.WithValue(ctx, Service.Groupname, gname)
+	ctx = context.WithValue(ctx, Service.Methodpath, mname)
+	glog.Info("++++++++++++++++++++++++++++++++method ", gname, "   ", mname)
+
+	response := request.Clone()
+	response.MessageType = protocol.MessageTypeResponse
+
+	request.ServiceName = "RouterService"
+	if r.Method == "POST" {
+		request.MethodName = "PostRouter"
+	} else if r.Method == "GET" {
+		request.MethodName = "GetRouter"
+	} else {
+		rw.WriteHeader(500)
+		return
+	}
+
+	glog.Infof("++++++++++++++++++++++++++++++++request %+v", request)
+
+	//解析body中的参数放到ctx 里面
+	ctx, err = parseBody(ctx, r)
+	if err != nil {
+		glog.Error("parse params failed err: ", err)
+	}
+
+	response = s.process(ctx, request, response)
+	data, _ := json.Marshal("hello world")
+	_, _ = rw.Write(data)
+	//s.writeHttpResponse(response, rw, r)
+}
+
+func parseBody(ctx context.Context, request *http.Request) (context.Context, error) {
+	if err := request.ParseForm(); err != nil {
+		return ctx, errors.New("wrong params")
+	}
+	for k, v := range request.Form {
+		glog.Info("params", k, "    :", v[0])
+		ctx = context.WithValue(ctx, k, v[0])
+	}
+	return ctx, nil
 }
 
 func parseHeader(message *protocol.Message, request *http.Request) (*protocol.Message, error) {
