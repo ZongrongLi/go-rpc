@@ -42,3 +42,6 @@ func (*OpenTracingInterceptor) WrapHandleRequest(s *SGServer, requestFunc Handle
 		requestFunc(ctx, request, response, tr)
 	}
 }
+func (*OpenTracingInterceptor) WrapServe(s *SGServer, serveFunc ServeFunc) ServeFunc {
+	return serveFunc
+}

@@ -28,16 +28,19 @@ type Option struct {
 	TransportType  transport.TransportType
 	ShutDownWait   time.Duration
 	Wrappers       []Wrapper
+	HttpWraper     []HTTPServeFunc
+	HttpBeginPoint *Middleware
 	ShutDownHooks  []ShutDownHook
 	Tags           map[string]string
 }
 
 var DefaultOption = Option{
-	ProtocolType:  protocol.Default,
-	SerializeType: protocol.SerializeTypeJson,
-	CompressType:  protocol.CompressTypeNone,
-	TransportType: transport.TCPTransport,
-	ShutDownWait:  time.Second * 12,
+	ProtocolType:   protocol.Default,
+	SerializeType:  protocol.SerializeTypeJson,
+	CompressType:   protocol.CompressTypeNone,
+	TransportType:  transport.TCPTransport,
+	ShutDownWait:   time.Second * 12,
+	HttpBeginPoint: nil,
 }
 
 type ShutDownHook func(s *SGServer)

@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -35,13 +36,39 @@ import (
 	"github.com/tiancai110a/go-rpc/transport"
 )
 
-func TestAdd(ctx context.Context) {
+func testMiddleware1(rw *http.ResponseWriter, r *http.Request, c *server.Middleware) {
+
+	fmt.Println("before===testMiddlewarec1")
+	c.Next(nil, nil)
+
+	fmt.Println("after===testMiddlewarec1")
+}
+
+func testMiddleware2(rw *http.ResponseWriter, r *http.Request, c *server.Middleware) {
+	fmt.Println("before===testMiddlewarec2")
+	c.Next(nil, nil)
+
+	fmt.Println("after===testMiddlewarec2")
+}
+
+func testMiddleware3(rw *http.ResponseWriter, r *http.Request, c *server.Middleware) {
+	fmt.Println("before===testMiddlewarec3")
+	c.Next(nil, nil)
+	fmt.Println("after===testMiddlewarec3")
+}
+func TestAdd(ctx context.Context, resp *service.Resp) {
+
 	glog.Info("===========================================================================================resultful func")
 	glog.Info("==================================test1:", ctx.Value("test1"))
 	glog.Info("==================================test:", ctx.Value("test"))
 	glog.Info("==================================name:", ctx.Value("name"))
 	glog.Info("==================================pass:", ctx.Value("pass"))
+	//	res.data
 
+	resp.Add("name", "tiancai")
+	resp.Add("res1", "3.14")
+	resp.Add("list1", "1234,4567,1234,0987,3333")
+	return
 }
 
 //用来停止server，测试心跳功能
@@ -69,6 +96,9 @@ func StartServer(op *server.Option) {
 			return
 		}
 		sk.Route("/Add", TestAdd)
+		s.Use(testMiddleware1)
+		s.Use(testMiddleware2)
+		s.Use(testMiddleware3)
 		go s.Serve("tcp", "127.0.0.1:8888", nil)
 	}()
 }

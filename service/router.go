@@ -23,7 +23,36 @@ import (
 const Methodpath = "methodpath"
 const Groupname = "groupname"
 
-type RouterFunc func(ctx context.Context)
+type HTTPErrCode byte
+
+const (
+	HTTPErrCodeOK = iota
+	HTTPErrCodeFailed
+)
+
+type RespBase struct {
+	Errcode   HTTPErrCode
+	ErrString string
+}
+
+type Resp struct {
+	RespBase
+	Data map[string]string
+}
+
+func (r *Resp) Add(key string, value string) {
+	r.Data[key] = value
+}
+
+func NewResp() Resp {
+	r := Resp{}
+	r.Errcode = HTTPErrCodeOK
+	m := make(map[string]string)
+	r.Data = m
+	return r
+}
+
+type RouterFunc func(ctx context.Context, r *Resp)
 
 type MapRouterFunc map[string]RouterFunc
 
@@ -46,12 +75,20 @@ type RouterRequest struct {
 }
 
 type RouterResponse struct {
+	Data *Resp
+}
+
+func NewRouterResponse() RouterResponse {
+	r := RouterResponse{}
+	rsp := NewResp()
+	r.Data = &rsp
+	return r
 }
 
 type RouterService struct {
 }
 
-func (t RouterService) PostRouter(ctx context.Context, req *RouterRequest, res *RouterRequest) error {
+func (t RouterService) PostRouter(ctx context.Context, req *RouterRequest, res *RouterResponse) error {
 
 	methodpath := ctx.Value(Methodpath).(string)
 	groupname := ctx.Value(Groupname).(string)
@@ -67,14 +104,19 @@ func (t RouterService) PostRouter(ctx context.Context, req *RouterRequest, res *
 		//没找到对应的处理方法
 		return errors.New("method is not registed")
 	}
-	realfun(ctx)
+	r := NewResp()
+	realfun(ctx, &r)
+	if r.RespBase.Errcode != HTTPErrCodeOK {
+		r.RespBase.Errcode = HTTPErrCodeFailed
+		r.RespBase.ErrString = "就是错了呀"
+	}
 	//返回结果
 
+	res.Data = &r
 	return nil
-
 }
 
-func (t RouterService) GetRouter(ctx context.Context, req *RouterRequest, res *RouterRequest) error {
+func (t RouterService) GetRouter(ctx context.Context, req *RouterRequest, res *RouterResponse) error {
 	methodpath := ctx.Value(Methodpath).(string)
 	groupname := ctx.Value(Groupname).(string)
 	m, ok := GetGroup2Func[groupname]
@@ -89,9 +131,14 @@ func (t RouterService) GetRouter(ctx context.Context, req *RouterRequest, res *R
 		//没找到对应的处理方法
 		return errors.New("method is not registed")
 	}
-	realfun(ctx)
+	r := NewResp()
+	realfun(ctx, &r)
+	if r.RespBase.Errcode != HTTPErrCodeOK {
+		r.RespBase.Errcode = HTTPErrCodeFailed
+		r.RespBase.ErrString = "就是错了呀"
+	}
 	//返回结果
-
+	res.Data = &r
 	return nil
 
 }

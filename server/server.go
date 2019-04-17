@@ -29,6 +29,8 @@ type RPCServer interface {
 	Serve(network string, addr string, meta map[string]interface{}) error
 	Register(rcvr interface{}) error
 	Close() error
+	Use(f HTTPServeFunc)
+
 	Group(t Service.MethodType, path string) *Service.MapRouterFunc
 }
 
@@ -71,9 +73,13 @@ func NewSimpleServer(op *Option) (RPCServer, error) {
 	}
 	return &s, nil
 }
-func (s *simpleServer) Group(t Service.MethodType, path string) *Service.MapRouterFunc {
+func (*simpleServer) Group(t Service.MethodType, path string) *Service.MapRouterFunc {
 	return nil
 }
+func (*simpleServer) Use(f HTTPServeFunc) {
+	return
+}
+
 func (s *simpleServer) Register(rcvr interface{}) error {
 
 	typ := reflect.TypeOf(rcvr)

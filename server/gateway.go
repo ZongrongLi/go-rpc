@@ -40,6 +40,9 @@ const (
 )
 
 func (s *SGServer) startGateway() {
+
+	s.option.HttpBeginPoint = chain(DefaultHTTPServeFunc, s.option.HttpWraper...)
+
 	port := 5080
 	ln, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	for err != nil && strings.Contains(err.Error(), "address already in use") {
@@ -51,6 +54,7 @@ func (s *SGServer) startGateway() {
 	}
 
 	glog.Error("gateway listenning on " + strconv.Itoa(port))
+
 	go func() {
 		err := http.Serve(ln, s)
 		if err != nil {
@@ -60,6 +64,7 @@ func (s *SGServer) startGateway() {
 		}
 	}()
 }
+
 func (s *SGServer) Group(t Service.MethodType, path string) *Service.MapRouterFunc {
 	path = strings.Trim(path, "/")
 
@@ -98,8 +103,14 @@ func parsePath(path string) (gname, mname string, err error) {
 	return
 }
 
+func (s *SGServer) Use(f HTTPServeFunc) {
+	s.option.HttpWraper = append(s.option.HttpWraper, f)
+}
+
 func (s *SGServer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
+	//调用中间件
+	s.option.HttpBeginPoint.Next(&rw, r)
 	request := protocol.NewMessage()
 	//var err error
 	//request, err = parseHeader(request, r)
@@ -145,8 +156,22 @@ func (s *SGServer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	response = s.process(ctx, request, response)
-	data, _ := json.Marshal("hello world")
-	_, _ = rw.Write(data)
+
+	rsp := Service.NewRouterResponse()
+	err = s.serializer.Unmarshal(response.Data, &rsp)
+	if err != nil {
+		glog.Error("http response unmarshal failed err: ", err)
+		rw.WriteHeader(500)
+		return
+	}
+	buff, err := json.Marshal(rsp.Data)
+	if err != nil {
+		glog.Info("====================================")
+		rw.WriteHeader(500)
+		return
+	}
+
+	_, _ = rw.Write(buff)
 	//s.writeHttpResponse(response, rw, r)
 }
 
