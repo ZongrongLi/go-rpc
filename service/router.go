@@ -23,7 +23,7 @@ import (
 const Methodpath = "methodpath"
 const Groupname = "groupname"
 
-type HTTPErrCode byte
+type HTTPErrCode int
 
 const (
 	HTTPErrCodeOK = iota
