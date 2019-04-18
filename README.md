@@ -217,49 +217,64 @@ s.option.Wrappers = append(s.option.Wrappers, &DefaultServerWrapper{})
 
 
 http网关的使用方法：
-将配置信息放到httpheader中：
+demo：
+https://github.com/tiancai110a/go-restful/tree/http-demo
+接口仿照的gin，使用方法很像
 
-
-使用post方法，路径为invoke
-request参数使用约定好的序列化方法序列化后放到body中
-
-
-一下为使用http包发送http请求代码：
+配置：
 ```
-func MakeRequest(req *http.Request,
-	msgtype protocol.MessageType,
-	comrpesstype protocol.CompressType,
-	serliazetype protocol.SerializeType,
-	statuscode protocol.StatusCode,
-	servicename string,
-	methodname string,
-	err string,
-	meta *map[string]interface{}) *http.Request {
+	servertOption := server.Option{
+		ProtocolType:   protocol.Default,
+		SerializeType:  protocol.SerializeTypeMsgpack,
+		CompressType:   protocol.CompressTypeNone,
+		TransportType:  transport.TCPTransport,
+		ShutDownWait:   time.Second * 12,
+		Registry:       r1,
+		RegisterOption: registry.RegisterOption{"my-app"},
+		Tags:           map[string]string{"idc": "lf"}, //只允许机房为lf的请求，客户端取到信息会自己进行转移
+	}
+```
 
-	req.Header.Set(server.HEADER_SEQ, "1")
-	req.Header.Set(server.HEADER_MESSAGE_TYPE, strconv.FormatUint((uint64)(msgtype), 10))
-	req.Header.Set(server.HEADER_COMPRESS_TYPE, strconv.FormatUint((uint64)(comrpesstype), 10))
-	req.Header.Set(server.HEADER_SERIALIZE_TYPE, strconv.FormatUint((uint64)(serliazetype), 10))
-	req.Header.Set(server.HEADER_STATUS_CODE, strconv.FormatUint((uint64)(statuscode), 10))
-	req.Header.Set(server.HEADER_SERVICE_NAME, servicename)
-	req.Header.Set(server.HEADER_METHOD_NAME, methodname)
-	req.Header.Set(server.HEADER_ERROR, err)
+设置路由和中间件
 
-	metaJson, _ := json.Marshal(meta)
-	req.Header.Set(server.HEADER_META_DATA, string(metaJson))
-	return req
+```
+func Load(s server.RPCServer) {
+	// Middlewares.
+
+	s.Use(middleware.TestMiddleware1)
+	s.Use(middleware.TestMiddleware2)
+	s.Use(middleware.TestMiddleware3)
+
+	// The health check handlers
+	svcd := s.Group(service.GET, "/view")
+	{
+		svcd.Route("/health", view.HealthCheck)
+		svcd.Route("/disk", view.DiskCheck)
+		svcd.Route("/cpu", view.CPUCheck)
+		svcd.Route("/ram", view.RAMCheck)
+	}
+
+	return
 }
 ```
 
-	arg := service.TesthRequest{a, b}
+启动：
+```
+func StartServer(op *server.Option) {
+	go func() {
+		s, err := server.NewSGServer(op)
+		if err != nil {
+			glog.Error("new serializer failed", err)
+			return
+		}
+		router.Load(s)
+		go s.Serve("tcp", "127.0.0.1:8888", nil)
+	}()
+}
 
-	data, _ := msgpack.Marshal(arg)
-	body := bytes.NewBuffer(data)
-	req, err := http.NewRequest("POST", "http://localhost:5080/invoke", body)
-	if err != nil {
-		glog.Info(err)
-		return
-	}
+```
+
+
 实现：<Br/>
 
 网络通信模型：<Br/>
