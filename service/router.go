@@ -94,13 +94,13 @@ func (t RouterService) PostRouter(ctx context.Context, req *RouterRequest, res *
 	groupname := ctx.Value(Groupname).(string)
 	m, ok := PostGroup2Func[groupname]
 	if !ok {
-		glog.Error("group is not registed", groupname, methodpath)
+		glog.Error("group is not registed:", groupname, methodpath)
 		//没找到对应的处理group
 		return errors.New("method is not registed")
 	}
 	realfun, ok := (*m)[methodpath]
 	if !ok {
-		glog.Error("method is not registed", groupname, methodpath)
+		glog.Error("method is not registed: ", groupname, methodpath)
 		//没找到对应的处理方法
 		return errors.New("method is not registed")
 	}

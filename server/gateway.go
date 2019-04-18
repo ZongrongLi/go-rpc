@@ -39,11 +39,11 @@ const (
 
 )
 
-func (s *SGServer) startGateway() {
+func (s *SGServer) startGateway(port int) {
 
 	s.option.HttpBeginPoint = chain(DefaultHTTPServeFunc, s.option.HttpWraper...)
 
-	port := 5080
+	//port := 5080
 	ln, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	for err != nil && strings.Contains(err.Error(), "address already in use") {
 		port++

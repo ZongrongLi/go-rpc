@@ -30,6 +30,7 @@ type Option struct {
 	Wrappers       []Wrapper
 	HttpWraper     []HTTPServeFunc
 	HttpBeginPoint *Middleware
+	HttpServePort  int
 	ShutDownHooks  []ShutDownHook
 	Tags           map[string]string
 }
