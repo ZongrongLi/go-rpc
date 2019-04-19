@@ -36,6 +36,13 @@ func NewRateLimiter(numPerSecond int64, threshold int64) RateLimiter {
 	r.Num = numPerSecond
 	r.Threshold = threshold
 	r.rateLimiter = make(chan time.Time, threshold)
+
+	for i := int64(0); i < threshold; i++ {
+		t := time.Now()
+		r.rateLimiter <- t
+
+	}
+
 	go func() {
 		d := time.Duration(numPerSecond)
 		ticker := time.NewTicker(time.Second / d)
