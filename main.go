@@ -90,7 +90,7 @@ func StartServer(op *server.Option) {
 
 		}
 
-		sk := s.Group(service.POST, "/invoke")
+		sk := s.Group(service.POST, "/v1/invoke/")
 		if sk == nil {
 			glog.Error("server dose not implement http server")
 			return

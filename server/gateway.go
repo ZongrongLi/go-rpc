@@ -66,36 +66,44 @@ func (s *SGServer) startGateway(port int) {
 }
 
 func (s *SGServer) Group(t Service.MethodType, path string) *Service.MapRouterFunc {
+
 	path = strings.Trim(path, "/")
+	pathstr := strings.Split(path, "/")
 
 	fm := &Service.PostGroup2Func
 	if t == Service.GET {
 		fm = &Service.GetGroup2Func
 	}
-	if _, ok := (*fm)[path]; !ok {
-		m := Service.MapRouterFunc{}
-		(*fm)[path] = &m
+
+	cc := ""
+	gname := ""
+	for i := 0; i < len(pathstr); i++ {
+		gname = gname + cc + pathstr[i]
+		cc = "_"
 	}
-	return (*fm)[path]
+
+	if _, ok := (*fm)[gname]; !ok {
+		m := Service.MapRouterFunc{}
+		(*fm)[gname] = &m
+	}
+
+	return (*fm)[gname]
 }
 
 func parsePath(path string) (gname, mname string, err error) {
 	//解析路径
 	mname = ""
 	gname = ""
-	pathstr := strings.SplitAfterN(path, "/", 3)
+	path = strings.Trim(path, "/")
+	pathstr := strings.Split(path, "/")
+	cc := ""
 
-	if len(pathstr) == 1 || len(pathstr) > 3 {
-		err = errors.New("wrong param")
-		return
-
+	for i := 0; i < len(pathstr)-1; i++ {
+		gname = gname + cc + pathstr[i]
+		cc = "_"
 	}
-
-	if len(pathstr) == 2 {
-		mname = pathstr[1]
-	} else {
-		gname = pathstr[1]
-		mname = pathstr[2]
+	if len(path) > 0 {
+		mname = pathstr[len(pathstr)-1]
 	}
 
 	mname = strings.Trim(mname, "/")
@@ -132,7 +140,6 @@ func (s *SGServer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	ctx = context.WithValue(ctx, Service.Groupname, gname)
 	ctx = context.WithValue(ctx, Service.Methodpath, mname)
-	glog.Info("++++++++++++++++++++++++++++++++method ", gname, "   ", mname)
 
 	response := request.Clone()
 	response.MessageType = protocol.MessageTypeResponse
@@ -146,8 +153,6 @@ func (s *SGServer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		rw.WriteHeader(500)
 		return
 	}
-
-	glog.Infof("++++++++++++++++++++++++++++++++request %+v", request)
 
 	//解析body中的参数放到ctx 里面
 	ctx, err = parseBody(ctx, r)
@@ -166,7 +171,6 @@ func (s *SGServer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 	buff, err := json.Marshal(rsp.Data)
 	if err != nil {
-		glog.Info("====================================")
 		rw.WriteHeader(500)
 		return
 	}
