@@ -31,6 +31,7 @@ type Option struct {
 	HttpWraper     []HTTPServeFunc
 	HttpBeginPoint *Middleware
 	HttpServePort  int
+	HttpServeOpen  bool
 	ShutDownHooks  []ShutDownHook
 	Tags           map[string]string
 }
@@ -42,6 +43,7 @@ var DefaultOption = Option{
 	TransportType:  transport.TCPTransport,
 	ShutDownWait:   time.Second * 12,
 	HttpBeginPoint: nil,
+	HttpServeOpen:  false,
 }
 
 type ShutDownHook func(s *SGServer)
