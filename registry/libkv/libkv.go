@@ -99,6 +99,15 @@ func NewKVRegistry(backend store.Backend,
 		log.Fatalf("cannot create regitry path %s: %v", r.ServicePath, err)
 	}
 
+	appkeyPath := basePath + "/" + AppKey
+	if exist, _ := r.kv.Exists(appkeyPath); !exist {
+		lastUpdate := strconv.Itoa(int(time.Now().UnixNano()))
+		err := r.kv.Put(appkeyPath, []byte(lastUpdate), &store.WriteOptions{IsDir: true})
+		if err != nil {
+			glog.Info("create path before watch error,  key %v", appkeyPath)
+		}
+	}
+
 	//显式拉取一次数据
 	r.doGetServiceList()
 	go func() {
@@ -124,7 +133,7 @@ func (r *KVRegistry) watch() {
 		appkeyPath := constructServiceBasePath(r.ServicePath, r.AppKey)
 
 		//监听时先检查路径是否存在
-		if exist, _ := r.kv.Exists(appkeyPath); exist {
+		if exist, _ := r.kv.Exists(appkeyPath); !exist {
 			lastUpdate := strconv.Itoa(int(time.Now().UnixNano()))
 			err := r.kv.Put(appkeyPath, []byte(lastUpdate), &store.WriteOptions{IsDir: true})
 			if err != nil {
@@ -231,7 +240,7 @@ func (r *KVRegistry) doGetServiceList() {
 
 	var list []registry.Provider
 	if err != nil {
-		glog.Info("error get service list %v", err)
+		glog.Infof("error get service list %v", err)
 		return
 	}
 
