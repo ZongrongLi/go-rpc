@@ -40,7 +40,6 @@ func NewRateLimiter(numPerSecond int64, threshold int64) RateLimiter {
 	for i := int64(0); i < threshold; i++ {
 		t := time.Now()
 		r.rateLimiter <- t
-
 	}
 
 	go func() {

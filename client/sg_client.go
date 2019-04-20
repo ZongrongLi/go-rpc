@@ -90,7 +90,22 @@ func (c *sgClient) watchService(watcher registry.Watcher) {
 		glog.Info("service changed!")
 
 		c.serversMu.Lock()
+
+		//如果曾经下线的重新上线，会创建新的连接
+		for _, p := range c.servers {
+			for _, pe := range event.Providers {
+				if p.ProviderKey == pe.ProviderKey {
+					cl, err := NewRPCClient(pe.Network, pe.Addr, &c.option.Option)
+					if err != nil {
+						glog.Error("update clietn error err: ", err)
+						return
+					}
+					c.clients.Store(pe.ProviderKey, cl)
+				}
+			}
+		}
 		c.servers = event.Providers
+
 		c.serversMu.Unlock()
 	}
 }

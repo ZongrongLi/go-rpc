@@ -165,8 +165,19 @@ func (r *KVRegistry) watch() {
 				r.providersMu.RLock()
 				list := r.providers
 				r.providersMu.RUnlock()
+
 				for _, p := range latestPairs {
-					glog.Info("got provider %v", kv2Provider(p))
+					//	glog.Info("got provider %v", kv2Provider(p))
+					dup := false
+					for _, provide := range list {
+						if p.Key == provide.ProviderKey {
+							dup = true
+							break
+						}
+					}
+					if dup {
+						continue
+					}
 					list = append(list, kv2Provider(p))
 				}
 
@@ -249,6 +260,13 @@ func (r *KVRegistry) doGetServiceList() {
 		list = append(list, provider)
 	}
 	glog.Info("get service list %v", list)
+
+	//及时通知客户端状态改变
+	lastUpdate := strconv.Itoa(int(time.Now().UnixNano()))
+	err = r.kv.Put(path, []byte(lastUpdate), nil)
+	if err != nil {
+		glog.Info("libkv register modify lastupdate error: %v, provider: %vs", err, list)
+	}
 	r.providersMu.Lock()
 	r.providers = list
 	r.providersMu.Unlock()

@@ -9,7 +9,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/tiancai110a/go-rpc/protocol"
-	"github.com/tiancai110a/go-rpc/registry"
 	Service "github.com/tiancai110a/go-rpc/service"
 	"github.com/tiancai110a/go-rpc/transport"
 )
@@ -39,15 +38,6 @@ func (w *DefaultServerWrapper) WrapServe(s *SGServer, serveFunc ServeFunc) Serve
 			meta["tags"] = s.option.Tags
 		}
 
-		//这里注册服务
-		provider := registry.Provider{
-			ProviderKey: network + "@" + addr,
-			Network:     network,
-			Addr:        addr,
-			Meta:        meta,
-		}
-
-		s.option.Registry.Register(s.option.RegisterOption, provider)
 		glog.Info("server started")
 		s.Register(Service.RouterService{})
 		if s.option.HttpServeOpen == true {

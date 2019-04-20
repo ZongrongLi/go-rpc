@@ -267,6 +267,16 @@ func (s *SGServer) serve(network string, addr string, meta map[string]interface{
 	if err != nil {
 		panic(err)
 	}
+	//这里注册服务
+	provider := registry.Provider{
+		ProviderKey: network + "@" + addr,
+		Network:     network,
+		Addr:        addr,
+		Meta:        meta,
+	}
+
+	s.option.Registry.Register(s.option.RegisterOption, provider)
+
 	glog.Info("tcp server at:", addr)
 
 	for {
