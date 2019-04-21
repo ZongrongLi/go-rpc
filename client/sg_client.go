@@ -94,7 +94,7 @@ func (c *sgClient) watchService(watcher registry.Watcher) {
 		//如果曾经下线的重新上线，会创建新的连接
 		for _, p := range c.servers {
 			for _, pe := range event.Providers {
-				if p.ProviderKey == pe.ProviderKey {
+				if p.ProviderKey == pe.ProviderKey && p.Isdegred {
 					cl, err := NewRPCClient(pe.Network, pe.Addr, &c.option.Option)
 					if err != nil {
 						glog.Error("update clietn error err: ", err)
