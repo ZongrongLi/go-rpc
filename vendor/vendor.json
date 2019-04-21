@@ -27,6 +27,90 @@
 			"revisionTime": "2019-03-23T20:25:03Z"
 		},
 		{
+			"checksumSHA1": "v9R+/cs1njritpQKxJHaSCNmG+A=",
+			"path": "github.com/tiancai110a/go-rpc",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
+			"checksumSHA1": "f17jOVtA/wHFy74Bs5wjV5DdevM=",
+			"path": "github.com/tiancai110a/go-rpc/client",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
+			"checksumSHA1": "TRaIunwF5uCZc9eD9VX4BtI6FAw=",
+			"path": "github.com/tiancai110a/go-rpc/protocol",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
+			"checksumSHA1": "IoLlpC6hphF0lpLpXJpDVed8W98=",
+			"path": "github.com/tiancai110a/go-rpc/ratelimit",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
+			"checksumSHA1": "NInCL5UzUMW1NXwXkUjl0vUHHRc=",
+			"path": "github.com/tiancai110a/go-rpc/registry",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
+			"checksumSHA1": "00pCfOFfbyS/x1L1cLQrmRWYxH0=",
+			"path": "github.com/tiancai110a/go-rpc/registry/libkv",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
+			"checksumSHA1": "bKsPHioeP3rGDV4RIFY1X1y1cDE=",
+			"path": "github.com/tiancai110a/go-rpc/registry/memory",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
+			"checksumSHA1": "C77aHYPbwHPu9glSctLIxOIqKcc=",
+			"path": "github.com/tiancai110a/go-rpc/selector",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
+			"checksumSHA1": "57rJR3SaVdmK780wreaqO6ok0cQ=",
+			"path": "github.com/tiancai110a/go-rpc/server",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
+			"checksumSHA1": "mHS6SMV9TxChComHhqDojDkTCx4=",
+			"path": "github.com/tiancai110a/go-rpc/service",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
+			"checksumSHA1": "O47c+SEcQrWVRP7uCPMs+aKtXeg=",
+			"path": "github.com/tiancai110a/go-rpc/share",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
+			"checksumSHA1": "bHoDzNcmIlSa0bhGc1wO0ED63JE=",
+			"path": "github.com/tiancai110a/go-rpc/share/metadata",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
+			"checksumSHA1": "Tu8lpJZ22/cwlLezCGyNl9akHKk=",
+			"path": "github.com/tiancai110a/go-rpc/share/trace",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
+			"checksumSHA1": "Dy7izxQD+ABqwr1jq54hqt6PxyE=",
+			"path": "github.com/tiancai110a/go-rpc/transport",
+			"revision": "a8afdbd578afed371c2b0117fb1c19551e8e950d",
+			"revisionTime": "2019-04-21T08:45:47Z"
+		},
+		{
 			"checksumSHA1": "7ZGbcFcB5UXRmCmtVExlSF1nQSs=",
 			"path": "github.com/tiancai110a/libkv/store",
 			"revision": "458977154600b9f23984d9f4b82e79570b5ae12b",

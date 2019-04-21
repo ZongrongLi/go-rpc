@@ -23,16 +23,9 @@ import (
 const Methodpath = "methodpath"
 const Groupname = "groupname"
 
-type HTTPErrCode int
-
-const (
-	HTTPErrCodeOK = iota
-	HTTPErrCodeFailed
-)
-
 type RespBase struct {
-	Errcode   HTTPErrCode
-	ErrString string
+	Statuscode int
+	ErrString  string
 }
 
 type Resp struct {
@@ -46,7 +39,8 @@ func (r *Resp) Add(key string, value string) {
 
 func NewResp() Resp {
 	r := Resp{}
-	r.Errcode = HTTPErrCodeOK
+	r.Statuscode = 0
+	r.ErrString = "ok"
 	m := make(map[string]string)
 	r.Data = m
 	return r
@@ -106,10 +100,10 @@ func (t RouterService) PostRouter(ctx context.Context, req *RouterRequest, res *
 	}
 	r := NewResp()
 	realfun(ctx, &r)
-	if r.RespBase.Errcode != HTTPErrCodeOK {
-		r.RespBase.Errcode = HTTPErrCodeFailed
-		r.RespBase.ErrString = "就是错了呀"
-	}
+	// if r.RespBase.Errcode != HTTPErrCodeOK {
+	// 	r.RespBase.Errcode = HTTPErrCodeFailed
+	// 	r.RespBase.ErrString = "就是错了呀"
+	// }
 	//返回结果
 
 	res.Data = &r
@@ -133,10 +127,10 @@ func (t RouterService) GetRouter(ctx context.Context, req *RouterRequest, res *R
 	}
 	r := NewResp()
 	realfun(ctx, &r)
-	if r.RespBase.Errcode != HTTPErrCodeOK {
-		r.RespBase.Errcode = HTTPErrCodeFailed
-		r.RespBase.ErrString = "就是错了呀"
-	}
+	// if r.RespBase.Errcode != HTTPErrCodeOK {
+	// 	r.RespBase.Errcode = HTTPErrCodeFailed
+	// 	r.RespBase.ErrString = "就是错了呀"
+	// }
 	//返回结果
 	res.Data = &r
 	return nil
