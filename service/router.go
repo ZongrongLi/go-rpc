@@ -25,7 +25,7 @@ const Groupname = "groupname"
 
 type RespBase struct {
 	Statuscode int
-	ErrString  string
+	Message    string
 }
 
 type Resp struct {
@@ -40,7 +40,7 @@ func (r *Resp) Add(key string, value string) {
 func NewResp() Resp {
 	r := Resp{}
 	r.Statuscode = 0
-	r.ErrString = "ok"
+	r.Message = "ok"
 	m := make(map[string]string)
 	r.Data = m
 	return r

@@ -163,6 +163,11 @@ func (s *SGServer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		beginpoint.Next(&rw, r)
 	}
 
+	if rw.Header().Get("Statuscode") != "0" {
+		//拦截中间件的错误
+		return
+	}
+
 	ctx = context.WithValue(ctx, Service.Groupname, gname)
 	ctx = context.WithValue(ctx, Service.Methodpath, mname)
 
