@@ -132,6 +132,17 @@ func (s *SGServer) UseGroup(groupname string, f HTTPServeFunc) {
 	s.option.HttpGroupBeginPoint[groupname] = mw
 }
 
+func sendResponse(rw http.ResponseWriter, rsp *Service.Resp) {
+	buff, err := json.Marshal(rsp)
+	if err != nil {
+		rw.WriteHeader(500)
+		return
+	}
+
+	_, _ = rw.Write(buff)
+	return
+}
+
 func (s *SGServer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	//调用中间件
@@ -163,8 +174,18 @@ func (s *SGServer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		beginpoint.Next(&rw, r)
 	}
 
-	if rw.Header().Get("Statuscode") != "0" {
-		//拦截中间件的错误
+	if rw.Header().Get("Statuscode") == "0" || rw.Header().Get("Statuscode") == "" {
+	} else {
+		rsp := Service.NewResp()
+		statuscode, err := strconv.ParseInt(rw.Header().Get("Statuscode"), 10, 64)
+		if err != nil {
+			rw.WriteHeader(500)
+			glog.Error("strconv failed err:", err)
+			return
+		}
+		rsp.Statuscode = int(statuscode)
+		rsp.Message = rw.Header().Get("Message")
+		sendResponse(rw, &rsp)
 		return
 	}
 
@@ -199,13 +220,7 @@ func (s *SGServer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		rw.WriteHeader(500)
 		return
 	}
-	buff, err := json.Marshal(rsp.Data)
-	if err != nil {
-		rw.WriteHeader(500)
-		return
-	}
-
-	_, _ = rw.Write(buff)
+	sendResponse(rw, rsp.Data)
 	//s.writeHttpResponse(response, rw, r)
 }
 
