@@ -51,6 +51,7 @@ func NewSGServer(op *Option) (RPCServer, error) {
 		s.option = *op
 	}
 	var err error
+	s.option.HttpGroupBeginPoint = make(map[string]*Middleware)
 	s.serializer, err = protocol.NewSerializer(s.option.SerializeType)
 	if err != nil {
 		//glog.Error("new serializer failed", err)

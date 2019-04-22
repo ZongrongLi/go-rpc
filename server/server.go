@@ -30,6 +30,7 @@ type RPCServer interface {
 	Register(rcvr interface{}) error
 	Close() error
 	Use(f HTTPServeFunc)
+	UseGroup(groupname string, f HTTPServeFunc)
 
 	Group(t Service.MethodType, path string) *Service.MapRouterFunc
 }
@@ -77,6 +78,9 @@ func (*simpleServer) Group(t Service.MethodType, path string) *Service.MapRouter
 	return nil
 }
 func (*simpleServer) Use(f HTTPServeFunc) {
+	return
+}
+func (*simpleServer) UseGroup(groupname string, f HTTPServeFunc) {
 	return
 }
 

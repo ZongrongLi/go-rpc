@@ -20,20 +20,21 @@ import (
 )
 
 type Option struct {
-	Registry       registry.Registry
-	RegisterOption registry.RegisterOption
-	ProtocolType   protocol.ProtocolType
-	SerializeType  protocol.SerializeType
-	CompressType   protocol.CompressType
-	TransportType  transport.TransportType
-	ShutDownWait   time.Duration
-	Wrappers       []Wrapper
-	HttpWraper     []HTTPServeFunc
-	HttpBeginPoint *Middleware
-	HttpServePort  int
-	HttpServeOpen  bool
-	ShutDownHooks  []ShutDownHook
-	Tags           map[string]string
+	Registry            registry.Registry
+	RegisterOption      registry.RegisterOption
+	ProtocolType        protocol.ProtocolType
+	SerializeType       protocol.SerializeType
+	CompressType        protocol.CompressType
+	TransportType       transport.TransportType
+	ShutDownWait        time.Duration
+	Wrappers            []Wrapper
+	HttpWraper          []HTTPServeFunc
+	HttpBeginPoint      *Middleware
+	HttpGroupBeginPoint map[string]*Middleware
+	HttpServePort       int
+	HttpServeOpen       bool
+	ShutDownHooks       []ShutDownHook
+	Tags                map[string]string
 }
 
 var DefaultOption = Option{

@@ -56,6 +56,12 @@ func testMiddleware3(rw *http.ResponseWriter, r *http.Request, c *server.Middlew
 	c.Next(nil, nil)
 	fmt.Println("after===testMiddlewarec3")
 }
+
+func testMiddleware4(rw *http.ResponseWriter, r *http.Request, c *server.Middleware) {
+	fmt.Println("before===testMiddlewarec4")
+	c.Next(nil, nil)
+	fmt.Println("after===testMiddlewarec4")
+}
 func TestAdd(ctx context.Context, resp *service.Resp) {
 
 	glog.Info("===========================================================================================resultful func")
@@ -63,6 +69,17 @@ func TestAdd(ctx context.Context, resp *service.Resp) {
 	glog.Info("==================================test:", ctx.Value("test"))
 	glog.Info("==================================name:", ctx.Value("name"))
 	glog.Info("==================================pass:", ctx.Value("pass"))
+	//	res.data
+
+	resp.Add("name", "tiancai")
+	resp.Add("res1", "3.14")
+	resp.Add("list1", "1234,4567,1234,0987,3333")
+	return
+}
+
+func Testfunc(ctx context.Context, resp *service.Resp) {
+
+	glog.Info("==================================Testfunc:")
 	//	res.data
 
 	resp.Add("name", "tiancai")
@@ -98,7 +115,11 @@ func StartServer(op *server.Option) {
 		sk.Route("/Add", TestAdd)
 		s.Use(testMiddleware1)
 		s.Use(testMiddleware2)
-		s.Use(testMiddleware3)
+
+		sk = s.Group(service.GET, "/testGroup")
+		s.UseGroup("/testGroup", testMiddleware3)
+		s.UseGroup("/testGroup", testMiddleware4)
+		sk.Route("testfunc", Testfunc)
 		go s.Serve("tcp", "127.0.0.1:8888", nil)
 	}()
 }
@@ -209,6 +230,7 @@ func main() {
 		RegisterOption: registry.RegisterOption{"my-app"},
 		Tags:           map[string]string{"idc": "lf"}, //只允许机房为lf的请求，客户端取到信息会自己进行转移
 		HttpServePort:  5080,
+		HttpServeOpen:  true,
 	}
 
 	//servertOption.Wrappers = append(slice, elems)

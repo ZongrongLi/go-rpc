@@ -41,8 +41,11 @@ const (
 
 func (s *SGServer) startGateway(port int) {
 
-	s.option.HttpBeginPoint = chain(DefaultHTTPServeFunc, s.option.HttpWraper...)
-
+	beginPoint := &Middleware{
+		F:    DefaultHTTPServeFunc,
+		GoOn: nil,
+	}
+	s.option.HttpBeginPoint = chain(beginPoint, s.option.HttpWraper...)
 	//port := 5080
 	ln, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	for err != nil && strings.Contains(err.Error(), "address already in use") {
@@ -114,11 +117,26 @@ func parsePath(path string) (gname, mname string, err error) {
 func (s *SGServer) Use(f HTTPServeFunc) {
 	s.option.HttpWraper = append(s.option.HttpWraper, f)
 }
+func (s *SGServer) UseGroup(groupname string, f HTTPServeFunc) {
+	groupname = strings.Trim(groupname, "/")
+	mw, ok := s.option.HttpGroupBeginPoint[groupname]
+	if !ok {
+		beginPoint := &Middleware{
+			F:    DefaultHTTPServeFunc,
+			GoOn: nil,
+		}
+		mw = chain(beginPoint, f)
+	} else {
+		mw = chain(mw, f)
+	}
+	s.option.HttpGroupBeginPoint[groupname] = mw
+}
 
 func (s *SGServer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	//调用中间件
 	s.option.HttpBeginPoint.Next(&rw, r)
+
 	request := protocol.NewMessage()
 	//var err error
 	//request, err = parseHeader(request, r)
@@ -136,6 +154,13 @@ func (s *SGServer) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		rw.WriteHeader(500)
 		return
+	}
+
+	//调用群组中间件
+	beginpoint, ojbk := s.option.HttpGroupBeginPoint[gname]
+
+	if ojbk {
+		beginpoint.Next(&rw, r)
 	}
 
 	ctx = context.WithValue(ctx, Service.Groupname, gname)

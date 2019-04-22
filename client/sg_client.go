@@ -47,7 +47,7 @@ func NewSGClient(option SGOption) SGClient {
 	c.option = option
 
 	providers := c.option.Registry.GetServiceList()
-	glog.Info("=++++++++++++++++++++++++++++++++++++++++++++++++++++初始拉全量", providers)
+	glog.Info("初始拉全量", providers)
 	c.watcher = c.option.Registry.Watch()
 	glog.Info("providers", providers)
 

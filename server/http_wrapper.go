@@ -18,20 +18,16 @@ func DefaultHTTPServeFunc(rw *http.ResponseWriter, r *http.Request, next *Middle
 
 var Wrappers []HTTPServeFunc
 
-func chain(beginPoint HTTPServeFunc, others ...HTTPServeFunc) *Middleware {
+func chain(next *Middleware, others ...HTTPServeFunc) *Middleware {
 
-	goon := &Middleware{
-		F:    beginPoint,
-		GoOn: nil,
-	}
 	for i := len(others) - 1; i >= 0; i-- {
-		goon = &Middleware{
+		next = &Middleware{
 			F:    others[i],
-			GoOn: goon,
+			GoOn: next,
 		}
 	}
 
-	return goon
+	return next
 }
 func (m *Middleware) Next(rw *http.ResponseWriter, r *http.Request) {
 	if m == nil {
