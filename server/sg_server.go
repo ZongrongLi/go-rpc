@@ -258,6 +258,7 @@ func (s *SGServer) Serve(network string, addr string, meta map[string]interface{
 }
 
 func (s *SGServer) serve(network string, addr string, meta map[string]interface{}) error {
+	glog.Info("===============================================================serve")
 	if s.shutdown {
 		return nil
 	}

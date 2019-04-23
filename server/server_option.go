@@ -33,8 +33,11 @@ type Option struct {
 	HttpGroupBeginPoint map[string]*Middleware
 	HttpServePort       int
 	HttpServeOpen       bool
+	HttpsServer         bool
 	ShutDownHooks       []ShutDownHook
 	Tags                map[string]string
+	Sslcert             string
+	Sslkey              string
 }
 
 var DefaultOption = Option{
@@ -45,6 +48,7 @@ var DefaultOption = Option{
 	ShutDownWait:   time.Second * 12,
 	HttpBeginPoint: nil,
 	HttpServeOpen:  false,
+	HttpsServer:    false,
 }
 
 type ShutDownHook func(s *SGServer)

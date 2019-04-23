@@ -41,7 +41,11 @@ func (w *DefaultServerWrapper) WrapServe(s *SGServer, serveFunc ServeFunc) Serve
 		glog.Info("server started")
 		s.Register(Service.RouterService{})
 		if s.option.HttpServeOpen == true {
-			s.startGateway(s.option.HttpServePort)
+			if s.option.HttpsServer {
+				s.startHttpsGateway(s.option.HttpServePort, s.option.Sslcert, s.option.Sslkey)
+			} else {
+				s.startGateway(s.option.HttpServePort)
+			}
 		}
 		return serveFunc(network, addr, meta)
 	}

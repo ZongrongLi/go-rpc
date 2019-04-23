@@ -39,14 +39,22 @@ const (
 
 )
 
-func (s *SGServer) startGateway(port int) {
-
+func (s *SGServer) startHttpsGateway(port int, cert, key string) {
 	beginPoint := &Middleware{
 		F:    DefaultHTTPServeFunc,
 		GoOn: nil,
 	}
 	s.option.HttpBeginPoint = chain(beginPoint, s.option.HttpWraper...)
-	//port := 5080
+
+	go func() {
+		addr := ":" + strconv.Itoa(port)
+		glog.Infof("Start to listening the incoming requests on https address: %s", addr)
+		glog.Info(http.ListenAndServeTLS(addr, s.option.Sslcert, s.option.Sslkey, s).Error())
+		glog.Info("htttps listenning on " + strconv.Itoa(port))
+	}()
+}
+
+func (s *SGServer) startGateway(port int) {
 	ln, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	for err != nil && strings.Contains(err.Error(), "address already in use") {
 		port++
@@ -56,7 +64,7 @@ func (s *SGServer) startGateway(port int) {
 		glog.Error("error listening gateway: %s", err.Error())
 	}
 
-	glog.Error("gateway listenning on " + strconv.Itoa(port))
+	glog.Info("gateway listenning on " + strconv.Itoa(port))
 
 	go func() {
 		err := http.Serve(ln, s)
